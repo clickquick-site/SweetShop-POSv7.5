@@ -1,0 +1,414 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+  <link rel="shortcut icon" href="favicon.svg"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>POS DZ - تسجيل الدخول</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
+
+    /* Animated particles */
+    .particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+    .particle {
+      position: absolute; border-radius: 50%;
+      background: var(--primary); opacity: 0.18;
+      animation: floatPart linear infinite;
+    }
+    @keyframes floatPart {
+      0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+      10%  { opacity: 0.18; }
+      90%  { opacity: 0.1; }
+      100% { transform: translateY(-20px) scale(1.2); opacity: 0; }
+    }
+
+    /* Glow rings */
+    .glow-ring {
+      position: fixed; border-radius: 50%;
+      border: 1px solid rgba(124,58,237,0.15);
+      animation: pulseRing 4s ease-in-out infinite;
+      pointer-events: none; z-index: 0;
+    }
+    @keyframes pulseRing {
+      0%,100% { transform: scale(1); opacity: 0.15; }
+      50%      { transform: scale(1.05); opacity: 0.25; }
+    }
+
+    /* Login card */
+    .login-wrap { position: relative; z-index: 1; width: 100%; max-width: 420px; padding: 20px; }
+
+    .login-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(124,58,237,0.12);
+    }
+    .card-glow-bar { height: 4px; background: linear-gradient(90deg, var(--primary), var(--secondary), var(--primary-light)); }
+    .card-body { padding: 36px 36px 28px; }
+
+    /* Brand */
+    .brand { display: flex; align-items: baseline; justify-content: center; gap: 4px; margin-bottom: 4px; }
+    .brand-pos {
+      font-family: Impact, sans-serif; font-size: 3.2rem;
+      color: var(--text-primary);
+      text-shadow: 0 0 20px rgba(255,255,255,0.2);
+    }
+    .brand-dz {
+      font-family: Impact, sans-serif; font-size: 3.2rem;
+      color: var(--primary);
+      text-shadow: 0 0 24px var(--glow);
+    }
+    .brand-sub { text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 24px; }
+
+    .divider-line { height: 1px; background: var(--border); margin: 0 0 24px; }
+
+    /* Form */
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; margin-bottom: 7px; }
+
+    .field-wrap {
+      display: flex; align-items: center;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      overflow: hidden;
+    }
+    .field-wrap:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(124,58,237,0.18);
+    }
+    .field-icon { padding: 0 12px; color: var(--text-secondary); font-size: 1rem; }
+    .field-wrap input, .field-wrap select {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: var(--text-primary); padding: 11px 8px 11px 0;
+      font-family: 'Cairo', sans-serif; font-size: 0.98rem;
+      direction: rtl;
+    }
+    .field-wrap select option { background: var(--bg-card); }
+    .toggle-eye {
+      background: transparent; border: none;
+      color: var(--text-secondary); font-size: 1rem;
+      cursor: pointer; padding: 0 12px;
+      transition: color 0.2s;
+    }
+    .toggle-eye:hover { color: var(--primary); }
+
+    .remember-row { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+    .remember-row input[type=checkbox] { accent-color: var(--primary); width: 16px; height: 16px; cursor: pointer; }
+    .remember-row label { font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; }
+
+    .btn-login {
+      width: 100%; padding: 13px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border: none; border-radius: var(--radius-sm);
+      color: #fff; font-family: 'Cairo', sans-serif;
+      font-size: 1.05rem; font-weight: 700;
+      cursor: pointer; transition: var(--transition);
+      box-shadow: 0 4px 16px rgba(124,58,237,0.35);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-login:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(124,58,237,0.5); }
+    .btn-login:active { transform: translateY(0); }
+
+    .error-msg { color: var(--danger); font-size: 0.88rem; text-align: center; margin-top: 10px; min-height: 20px; }
+
+    .card-footer { padding: 14px 36px 20px; border-top: 1px solid var(--border); text-align: center; }
+    .card-footer p { font-size: 0.78rem; color: var(--text-secondary); }
+
+    .sidebar,.sidebar-overlay{display:none!important;}
+  </style>
+</head>
+<body>
+<div class="bg-animated"></div>
+
+<!-- Glow Rings -->
+<div class="glow-ring" style="width:500px;height:500px;top:50%;left:50%;transform:translate(-50%,-50%);animation-delay:0s;"></div>
+<div class="glow-ring" style="width:700px;height:700px;top:50%;left:50%;transform:translate(-50%,-50%);animation-delay:1.3s;"></div>
+<div class="glow-ring" style="width:900px;height:900px;top:50%;left:50%;transform:translate(-50%,-50%);animation-delay:2.6s;"></div>
+
+<!-- Particles -->
+<div class="particles" id="particles"></div>
+
+<!-- Login Card -->
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="card-glow-bar"></div>
+    <div class="card-body">
+      <!-- Brand -->
+      <div class="brand">
+        <span class="brand-pos">POS</span>
+        <span class="brand-dz">DZ</span>
+      </div>
+      <p class="brand-sub">نظام نقاط البيع الذكي</p>
+      <div class="divider-line"></div>
+
+      <!-- Username -->
+      <div class="form-group">
+        <label class="form-label">👤 اسم المستخدم</label>
+        <div class="field-wrap">
+          <span class="field-icon">◉</span>
+          <select id="usernameSelect">
+            <option value="">-- اختر المستخدم --</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="form-group">
+        <label class="form-label">🔑 الرقم السري</label>
+        <div class="field-wrap">
+          <span class="field-icon">🔒</span>
+          <input type="password" id="passwordInput" placeholder="أدخل الرقم السري" autocomplete="current-password"/>
+          <button class="toggle-eye" id="toggleEye" onclick="togglePassword()">👁</button>
+        </div>
+      </div>
+
+      <!-- Remember -->
+      <div class="remember-row">
+        <input type="checkbox" id="rememberMe" checked/>
+        <label for="rememberMe">حفظ بيانات الدخول</label>
+      </div>
+
+      <!-- Login Button -->
+      <button class="btn-login" onclick="doLogin()">
+        دخول ⟵
+      </button>
+
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+
+    <div class="card-footer">
+      <p>POS DZ v6.0.0 &nbsp;|&nbsp; 2026 POS DZ — جميع الحقوق محفوظة ®</p>
+    </div>
+  </div>
+</div>
+
+<!-- Virtual Keyboard -->
+<div class="vkb-overlay" id="vkbOverlay">
+  <div class="vkb-container">
+    <div class="vkb-row">
+      <button class="vkb-key" onclick="vkbPress('1')">1</button>
+      <button class="vkb-key" onclick="vkbPress('2')">2</button>
+      <button class="vkb-key" onclick="vkbPress('3')">3</button>
+      <button class="vkb-key" onclick="vkbPress('4')">4</button>
+      <button class="vkb-key" onclick="vkbPress('5')">5</button>
+      <button class="vkb-key" onclick="vkbPress('6')">6</button>
+      <button class="vkb-key" onclick="vkbPress('7')">7</button>
+      <button class="vkb-key" onclick="vkbPress('8')">8</button>
+      <button class="vkb-key" onclick="vkbPress('9')">9</button>
+      <button class="vkb-key" onclick="vkbPress('0')">0</button>
+      <button class="vkb-key delete" onclick="vkbPress('⌫')">⌫</button>
+    </div>
+    <div class="vkb-row">
+      <button class="vkb-key" onclick="vkbPress('ض')">ض</button>
+      <button class="vkb-key" onclick="vkbPress('ص')">ص</button>
+      <button class="vkb-key" onclick="vkbPress('ث')">ث</button>
+      <button class="vkb-key" onclick="vkbPress('ق')">ق</button>
+      <button class="vkb-key" onclick="vkbPress('ف')">ف</button>
+      <button class="vkb-key" onclick="vkbPress('غ')">غ</button>
+      <button class="vkb-key" onclick="vkbPress('ع')">ع</button>
+      <button class="vkb-key" onclick="vkbPress('ه')">ه</button>
+      <button class="vkb-key" onclick="vkbPress('خ')">خ</button>
+      <button class="vkb-key" onclick="vkbPress('ح')">ح</button>
+      <button class="vkb-key" onclick="vkbPress('ج')">ج</button>
+    </div>
+    <div class="vkb-row">
+      <button class="vkb-key" onclick="vkbPress('ش')">ش</button>
+      <button class="vkb-key" onclick="vkbPress('س')">س</button>
+      <button class="vkb-key" onclick="vkbPress('ي')">ي</button>
+      <button class="vkb-key" onclick="vkbPress('ب')">ب</button>
+      <button class="vkb-key" onclick="vkbPress('ل')">ل</button>
+      <button class="vkb-key" onclick="vkbPress('ا')">ا</button>
+      <button class="vkb-key" onclick="vkbPress('ت')">ت</button>
+      <button class="vkb-key" onclick="vkbPress('ن')">ن</button>
+      <button class="vkb-key" onclick="vkbPress('م')">م</button>
+      <button class="vkb-key" onclick="vkbPress('ك')">ك</button>
+      <button class="vkb-key" onclick="vkbPress('ط')">ط</button>
+    </div>
+    <div class="vkb-row">
+      <button class="vkb-key" onclick="vkbPress('A')">A</button>
+      <button class="vkb-key" onclick="vkbPress('B')">B</button>
+      <button class="vkb-key" onclick="vkbPress('C')">C</button>
+      <button class="vkb-key" onclick="vkbPress('D')">D</button>
+      <button class="vkb-key" onclick="vkbPress('E')">E</button>
+      <button class="vkb-key" onclick="vkbPress('F')">F</button>
+      <button class="vkb-key" onclick="vkbPress('G')">G</button>
+      <button class="vkb-key" onclick="vkbPress('H')">H</button>
+      <button class="vkb-key space wide" onclick="vkbPress(' ')">مسافة</button>
+      <button class="vkb-key enter-key" onclick="doLogin()" style="background:var(--primary);color:#fff;font-weight:800;min-width:70px;">دخول ↵</button>
+      <button class="vkb-key close" onclick="vkbClose()">✖ إغلاق</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+// ── Particles ──
+(function() {
+  const container = document.getElementById('particles');
+  for (let i = 0; i < 18; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = Math.random() * 8 + 3;
+    p.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%;
+      animation-duration:${Math.random()*10+6}s;
+      animation-delay:${Math.random()*8}s;
+      background:${Math.random()>0.5 ? 'var(--primary)' : 'var(--secondary)'};
+    `;
+    container.appendChild(p);
+  }
+})();
+
+// ── Password Toggle ──
+function togglePassword() {
+  const inp = document.getElementById('passwordInput');
+  const btn = document.getElementById('toggleEye');
+  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+  else { inp.type = 'password'; btn.textContent = '👁'; }
+}
+
+// ── Load Users ──
+async function loadUsers() {
+  await openDB();
+  await applyTheme();
+  const users = await dbGetAll('users');
+  const sel = document.getElementById('usernameSelect');
+  sel.innerHTML = '<option value="">-- اختر المستخدم --</option>';
+  users.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u.username;
+    opt.textContent = u.username + (u.role === 'admin' ? ' 👑' : u.role === 'manager' ? ' 🛡' : ' 👤');
+    sel.appendChild(opt);
+  });
+  // Auto-fill if remembered
+  const saved = localStorage.getItem('posdz_last_user');
+  if (saved) sel.value = saved;
+}
+
+// ── Login ──
+// ── نظام تحديد محاولات الدخول الفاشلة ──────────────────────
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS   = 5 * 60 * 1000; // 5 دقائق
+const ATTEMPTS_KEY = 'posdz_login_attempts';
+
+function _getAttempts() {
+  try { return JSON.parse(localStorage.getItem(ATTEMPTS_KEY)) || { count:0, lockedUntil:0 }; }
+  catch { return { count:0, lockedUntil:0 }; }
+}
+function _saveAttempts(obj) { localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(obj)); }
+function _clearAttempts()   { localStorage.removeItem(ATTEMPTS_KEY); }
+
+function _checkLockout() {
+  const a = _getAttempts();
+  if (a.lockedUntil && Date.now() < a.lockedUntil) {
+    const rem = Math.ceil((a.lockedUntil - Date.now()) / 1000);
+    const m   = Math.floor(rem / 60), s = rem % 60;
+    return `🔒 الحساب مقفل — انتظر ${m}:${String(s).padStart(2,'0')}`;
+  }
+  // انتهى الإقفال — أعد التعيين
+  if (a.lockedUntil && Date.now() >= a.lockedUntil) _clearAttempts();
+  return null;
+}
+
+// تحديث العداد المرئي كل ثانية أثناء الإقفال
+let _lockTimer = null;
+function _startLockCountdown(errEl) {
+  if (_lockTimer) clearInterval(_lockTimer);
+  _lockTimer = setInterval(() => {
+    const msg = _checkLockout();
+    if (msg) {
+      errEl.textContent = msg;
+    } else {
+      clearInterval(_lockTimer);
+      errEl.textContent = '';
+      document.getElementById('passwordInput').disabled = false;
+      document.querySelector('button[onclick="doLogin()"]') &&
+        (document.querySelector('button[onclick="doLogin()"]').disabled = false);
+    }
+  }, 1000);
+}
+
+async function doLogin() {
+  const username = document.getElementById('usernameSelect').value;
+  const password = document.getElementById('passwordInput').value;
+  const errEl    = document.getElementById('errorMsg');
+
+  if (!username || !password) {
+    errEl.textContent = '⚠️ يرجى اختيار المستخدم وإدخال الرقم السري';
+    return;
+  }
+
+  // تحقق من الإقفال
+  const lockMsg = _checkLockout();
+  if (lockMsg) {
+    errEl.textContent = lockMsg;
+    _startLockCountdown(errEl);
+    return;
+  }
+
+  const users   = await dbGetAll('users');
+  const results = await Promise.all(users.map(u => verifyPassword(password, u.password).then(ok => ok ? u : null)));
+  const user    = results.find(u => u !== null);
+
+  if (user) {
+    _clearAttempts();
+    errEl.textContent = '';
+    saveSession(user);
+    if (document.getElementById('rememberMe').checked) {
+      localStorage.setItem('posdz_last_user', username);
+    }
+    toast('مرحباً ' + user.username + '! 🎉', 'success', 1200);
+    try { notifLogin(user.username); } catch(e) {}
+    setTimeout(() => { window.location.href = 'sale.html'; }, 1000);
+  } else {
+    // تسجيل المحاولة الفاشلة
+    const a = _getAttempts();
+    a.count = (a.count || 0) + 1;
+    const remaining = MAX_ATTEMPTS - a.count;
+
+    if (a.count >= MAX_ATTEMPTS) {
+      a.lockedUntil = Date.now() + LOCKOUT_MS;
+      _saveAttempts(a);
+      document.getElementById('passwordInput').disabled = true;
+      errEl.textContent = `🔒 تجاوزت ${MAX_ATTEMPTS} محاولات — الحساب مقفل 5 دقائق`;
+      _startLockCountdown(errEl);
+    } else {
+      _saveAttempts(a);
+      errEl.textContent = `❌ رقم سري خاطئ — ${remaining} محاولة متبقية`;
+      document.getElementById('passwordInput').style.borderColor = 'var(--danger)';
+      setTimeout(() => { document.getElementById('passwordInput').style.borderColor = ''; }, 1500);
+    }
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('passwordInput').focus();
+  }
+}
+
+// عند تحميل الصفحة — تحقق من وجود إقفال سابق
+window.addEventListener('DOMContentLoaded', () => {
+  const errEl  = document.getElementById('errorMsg');
+  const lockMsg = _checkLockout();
+  if (lockMsg && errEl) {
+    errEl.textContent = lockMsg;
+    document.getElementById('passwordInput').disabled = true;
+    _startLockCountdown(errEl);
+  }
+});
+
+// Enter key
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+loadUsers();
+initVirtualKeyboard();
+</script>
+</body>
+</html>
