@@ -370,7 +370,7 @@
                 <option value="58x20">58 × 20 مم — ضيق</option>
                 <option value="40x30">40 × 30 مم — مربع صغير</option>
                 <option value="40x25">40 × 25 مم</option>
-                <option value="40x20">40 × 20 مم — ETIQ (Xprinter 420B)</option>
+                <option value="40x20">40 × 20 مم</option>
                 <option value="38x25">38 × 25 مم — صغير</option>
                 <option value="30x20">30 × 20 مم — جواهر</option>
               </select>
@@ -1157,63 +1157,120 @@ function applyFontPreview(fontName) {
 // PRINTER
 // ═══════════════════════════════════════════════════
 async function openPrinterDialog(type) {
-  const paperSize = document.getElementById('paperSize')?.value || '80mm';
-  const widthMap  = {'58mm':'54mm','80mm':'76mm','A5':'148mm','A4':'210mm'};
   const isInvoice = type === 'invoice';
-  const pw = isInvoice ? (widthMap[paperSize] || '76mm') : '60mm';
-
-  // اقرأ الاسم المحفوظ مسبقاً لعرضه كـ placeholder
   const savedName = (await getSetting(isInvoice ? 'printerInvoice' : 'printerBarcode')) || '';
 
-  const pageContent = isInvoice
-    ? `<div style="text-align:center;padding:15px;font-family:Arial;">
-        <h2>طباعة تجريبية — فاتورة</h2><hr/>
-        <p>POS DZ — فاتورة تجريبية</p>
-        <p>المنتج × الكمية = المجموع</p>
-        <p style="font-size:18px;font-weight:900;">الإجمالي: 500.00 دج</p>
-       </div>`
-    : `<div style="text-align:center;padding:8px;font-family:Arial;width:56mm;">
-        <p style="font-weight:900;font-size:13px;">POS DZ</p>
-        <p style="font-weight:900;font-size:12px;">سكر — 1كغ</p>
-        <p style="font-family:monospace;font-size:10px;letter-spacing:2px;">6191234567890</p>
-        <p style="font-size:16px;font-weight:900;">150.00 دج</p>
-       </div>`;
+  // بناء الـ overlay
+  const overlay = document.createElement('div');
+  overlay.id = '_printerSelectOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  overlay.innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;max-width:480px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,0.5);font-family:var(--font-main);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <span style="font-size:2rem;">${isInvoice ? '🖨️' : '🏷️'}</span>
+        <div>
+          <div style="font-size:1.05rem;font-weight:900;color:var(--primary-light);">${isInvoice ? 'طابعة الفواتير' : 'طابعة الباركود'}</div>
+          <div style="font-size:0.75rem;color:var(--text-secondary);">اختر من القائمة أو أدخل الاسم يدوياً</div>
+        </div>
+        <button onclick="document.getElementById('_printerSelectOverlay').remove()" style="margin-right:auto;background:transparent;border:none;color:var(--text-secondary);font-size:1.4rem;cursor:pointer;line-height:1;">✕</button>
+      </div>
 
-  const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">
-    <style>@page{size:${pw} auto;margin:4mm;}body{font-family:Arial;color:#000;background:#fff;}@media print{*{-webkit-print-color-adjust:exact;}}</style>
-    </head><body>${pageContent}</body></html>`;
+      <!-- قائمة الطابعات -->
+      <div id="_printerListBox" style="margin-bottom:16px;">
+        <div style="font-size:0.82rem;font-weight:700;color:var(--text-secondary);margin-bottom:8px;">🖥️ الطابعات المتاحة في الجهاز:</div>
+        <div id="_printerListItems" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;">
+          <div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.85rem;">
+            <span id="_printerLoadingTxt">⏳ جاري البحث عن الطابعات...</span>
+          </div>
+        </div>
+      </div>
 
-  // فتح نافذة الطباعة — بعد انتهائها يظهر dialog لتأكيد اسم الطابعة
-  const w = window.open('', '_blank', 'width=420,height=400,scrollbars=no,toolbar=no,menubar=no');
-  if (!w) { toast('⚠️ أجِز النوافذ المنبثقة ثم أعد المحاولة', 'warning'); return; }
-  w.document.open(); w.document.write(html); w.document.close();
+      <div style="height:1px;background:var(--border);margin:14px 0;"></div>
 
-  let _nameAsked = false;
-  const askName = async () => {
-    if (_nameAsked) return;
-    _nameAsked = true;
-    try { w.close(); } catch(e) {}
-    const label = isInvoice ? 'اكتب اسم طابعة الفواتير التي اخترتها:' : 'اكتب اسم طابعة الباركود التي اخترتها:';
-    const chosen = await _inputDialog(label, savedName || 'الطابعة الافتراضية');
-    if (chosen && chosen.trim()) {
-      const nameEl = document.getElementById(isInvoice ? 'printerInvoiceName' : 'printerBarcodeName');
-      if (nameEl) nameEl.textContent = chosen.trim();
-      const cardEl = document.getElementById(isInvoice ? 'printerInvoiceCard' : 'printerBarcodeCard');
-      if (cardEl) cardEl.classList.add('selected');
-      await setSetting(isInvoice ? 'printerInvoice' : 'printerBarcode', chosen.trim());
-      toast(`✅ تم حفظ اسم الطابعة: ${chosen.trim()}`, 'success');
+      <!-- إدخال يدوي -->
+      <div style="margin-bottom:16px;">
+        <label style="font-size:0.82rem;font-weight:700;color:var(--text-secondary);display:block;margin-bottom:6px;">✏️ أو أدخل اسم الطابعة يدوياً:</label>
+        <input id="_printerNameInput" type="text" value="${savedName}"
+          placeholder="مثال: XP-420B"
+          style="width:100%;background:var(--bg-input);border:1.5px solid var(--primary);border-radius:8px;color:var(--text-primary);padding:10px 12px;font-family:var(--font-main);font-size:0.95rem;outline:none;box-sizing:border-box;"/>
+        ${savedName ? `<div style="font-size:0.72rem;color:#10b981;margin-top:5px;">✅ الطابعة الحالية: <b>${savedName}</b></div>` : ''}
+      </div>
+
+      <div style="display:flex;gap:8px;">
+        <button id="_savePrinterBtn" style="flex:1;padding:11px;border-radius:8px;border:none;cursor:pointer;background:var(--primary);color:#fff;font-family:var(--font-main);font-size:0.95rem;font-weight:700;">
+          💾 حفظ وتفعيل
+        </button>
+        <button onclick="document.getElementById('_printerSelectOverlay').remove()" style="padding:11px 18px;border-radius:8px;cursor:pointer;background:transparent;color:var(--text-secondary);font-family:var(--font-main);font-size:0.9rem;border:1px solid var(--border);">
+          إلغاء
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  // ── جلب قائمة الطابعات من السيرفر ──
+  (async () => {
+    try {
+      const serverIP   = await getSetting('syncServerIP')   || '192.168.1.1';
+      const serverPort = await getSetting('syncServerPort') || '3000';
+      const resp = await fetch(`http://${serverIP}:${serverPort}/api/printers`, { signal: AbortSignal.timeout(4000) });
+      if (!resp.ok) throw new Error('server error');
+      const { printers } = await resp.json();
+
+      const container = document.getElementById('_printerListItems');
+      if (!container) return;
+
+      if (!printers || printers.length === 0) {
+        container.innerHTML = `<div style="text-align:center;padding:12px;color:var(--text-secondary);font-size:0.82rem;">⚠️ لم يتم العثور على طابعات — أدخل الاسم يدوياً</div>`;
+        return;
+      }
+
+      container.innerHTML = printers.map(p => `
+        <div onclick="_selectPrinterFromList('${p.name.replace(/'/g,"\\'")}', this)"
+          style="padding:10px 14px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;
+                 background:${p.name === savedName ? 'rgba(124,58,237,0.12)' : 'var(--bg-dark)'};
+                 border-color:${p.name === savedName ? 'var(--primary)' : 'var(--border)'};
+                 transition:all 0.15s;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:1.2rem;">${p.isDefault ? '⭐' : '🖨️'}</span>
+          <span style="font-weight:700;font-size:0.9rem;color:var(--text-primary);">${p.name}</span>
+          ${p.isDefault ? '<span style="font-size:0.7rem;background:#7c3aed22;color:var(--primary-light);padding:2px 7px;border-radius:10px;margin-right:auto;">افتراضية</span>' : ''}
+        </div>`).join('');
+    } catch(e) {
+      const container = document.getElementById('_printerListItems');
+      if (container) container.innerHTML = `<div style="text-align:center;padding:12px;color:var(--text-secondary);font-size:0.82rem;">⚠️ السيرفر غير متصل — أدخل اسم الطابعة يدوياً</div>`;
     }
+  })();
+
+  // ── تحديد طابعة من القائمة ──
+  window._selectPrinterFromList = (name, el) => {
+    document.querySelectorAll('#_printerListItems > div').forEach(d => {
+      d.style.borderColor = 'var(--border)';
+      d.style.background  = 'var(--bg-dark)';
+    });
+    el.style.borderColor = 'var(--primary)';
+    el.style.background  = 'rgba(124,58,237,0.12)';
+    const inp = document.getElementById('_printerNameInput');
+    if (inp) inp.value = name;
   };
 
-  w.onload = function() {
-    setTimeout(() => {
-      try { w.focus(); w.print(); } catch(e) {}
-      w.onafterprint = askName;
-      // fallback إذا لم يُطلق onafterprint
-      setTimeout(askName, 9000);
-    }, 350);
+  // ── حفظ ──
+  document.getElementById('_savePrinterBtn').onclick = async () => {
+    const name = (document.getElementById('_printerNameInput')?.value || '').trim();
+    if (!name) { toast('⚠️ أدخل أو اختر اسم الطابعة', 'warning'); return; }
+    const key    = isInvoice ? 'printerInvoice' : 'printerBarcode';
+    const nameEl = document.getElementById(isInvoice ? 'printerInvoiceName' : 'printerBarcodeName');
+    const cardEl = document.getElementById(isInvoice ? 'printerInvoiceCard' : 'printerBarcodeCard');
+    if (nameEl) nameEl.textContent = name;
+    if (cardEl) cardEl.classList.add('selected');
+    await setSetting(key, name);
+    toast(`✅ تم حفظ الطابعة: ${name}`, 'success');
+    overlay.remove();
   };
-  setTimeout(() => { if (w && !w.closed) { try { w.focus(); w.print(); } catch(e) {} } }, 1800);
+
+  document.getElementById('_printerNameInput')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('_savePrinterBtn')?.click();
+  });
 }
 
 function clearPrinterName(type) {
