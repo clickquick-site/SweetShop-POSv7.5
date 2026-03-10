@@ -601,7 +601,7 @@ table.items tbody tr + tr { border-top: 1px dashed #999; }
 // ══════════════════════════════════════════════════════════════
 // طباعة ذكية — تستخدم السيرفر للطابعة المحددة، أو نافذة المتصفح كـ fallback
 // ══════════════════════════════════════════════════════════════
-async function _smartPrint(html, printerKey, labelSize) {
+async function _smartPrint(html, printerKey, labelSize, printW, printH) {
   // هل السيرفر متاح؟
   try {
     const syncEnabled = await getSetting('syncEnabled');
@@ -622,11 +622,15 @@ async function _smartPrint(html, printerKey, labelSize) {
     }
   } catch(e) { /* السيرفر غير متاح — نستخدم المتصفح */ }
   // Fallback: نافذة المتصفح
-  _thermalPrint(html);
+  _thermalPrint(html, printW, printH);
 }
 
-function _thermalPrint(html) {
-  const w = window.open('', '_blank', 'width=420,height=600,scrollbars=no,toolbar=no,menubar=no,location=no,status=no');
+function _thermalPrint(html, printW, printH) {
+  // 1mm = 3.7795px عند 96dpi — نحسب حجم النافذة بدقة من أبعاد الملصق
+  const MM = 3.7795;
+  const wPx = printW ? Math.round(printW * MM) + 40 : 420;  // +40 هامش إطار النافذة
+  const hPx = printH ? Math.round(printH * MM) + 80 : 600;  // +80 هامش شريط العنوان
+  const w = window.open('', '_blank', `width=${wPx},height=${hPx},scrollbars=no,toolbar=no,menubar=no,location=no,status=no`);
   if (!w) { _silentPrint(html); return; }
   w.document.open();
   w.document.write(html);
@@ -685,7 +689,7 @@ async function printBarcodeLabel(product) {
 
   const labelHTML=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>@page{margin:0;size:${printW}mm ${printH}mm;}*{margin:0;padding:0;box-sizing:border-box;}html{width:${printW}mm;height:${printH}mm;overflow:hidden;}body{font-family:'${bcFont||'Cairo'}',Arial,sans-serif;background:#fff;color:#000;width:${printBodyW}mm;height:${printH}mm;overflow:hidden;text-align:center;padding:1mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;}.sn{font-size:${storeFontSize}px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:${printBodyW}mm;}.pn{font-size:${baseFontSize}px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:${printBodyW}mm;}.bc{font-family:'Courier New',monospace;font-size:${barcodeFontSize}px;letter-spacing:1px;font-weight:800;}.pr{font-size:${priceFontSize}px;font-weight:900;margin-top:1px;}@media print{*{color:#000!important;}}</style></head><body>${showStore==='1'&&sName?`<div class="sn">${sName}</div>`:''}${showName!=='0'?`<div class="pn">${product.name}${product.size?' — '+product.size:''}</div>`:''}${bars}<div class="bc">${bv}</div>${showPrice!=='0'?`<div class="pr">${parseFloat(product.sellPrice||0).toFixed(2)} ${cur||'DA'}</div>`:''}</body></html>`;
   // طباعة ذكية: عبر السيرفر إذا متاح، وإلا نافذة المتصفح
-  await _smartPrint(labelHTML, 'printerBarcode', rawSize || '58x38');
+  await _smartPrint(labelHTML, 'printerBarcode', rawSize || '58x38', printW, printH);
 }
 
 
