@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+  <link rel="shortcut icon" href="favicon.svg"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>POS DZ</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <style>
+    body{display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden;margin:0;}
+    .splash{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;padding:20px;}
+    .splash-logo{width:90px;height:90px;background:var(--gradient-primary);border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:2.2rem;color:#fff;font-family:Impact,sans-serif;font-weight:900;box-shadow:0 8px 32px var(--glow);animation:pulse 2s infinite;}
+    @keyframes pulse{0%,100%{box-shadow:0 8px 32px var(--glow);}50%{box-shadow:0 8px 48px var(--glow),0 0 0 12px rgba(124,58,237,0.12);}}
+    .splash-title{font-size:2.4rem;font-weight:900;background:var(--gradient-primary);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-family:Impact,sans-serif;letter-spacing:2px;}
+    .splash-sub{color:var(--text-secondary);font-size:0.95rem;font-weight:600;min-height:22px;}
+    .splash-loader{width:200px;height:5px;background:var(--bg-medium);border-radius:4px;overflow:hidden;}
+    .splash-loader-bar{height:100%;width:0%;background:var(--gradient-primary);border-radius:4px;transition:width 0.15s linear;}
+    .err-box{display:none;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:10px;padding:14px 18px;max-width:300px;margin-top:8px;}
+    .err-box p{color:#ef4444;font-size:0.82rem;font-weight:700;margin:0 0 10px;}
+    .err-box button{background:#ef4444;color:#fff;border:none;border-radius:6px;padding:6px 18px;font-size:0.85rem;font-weight:700;cursor:pointer;margin-left:6px;}
+    .err-box button.sec{background:rgba(255,255,255,0.1);color:var(--text-primary);}
+  </style>
+</head>
+<body>
+<div class="bg-animated"></div>
+<div class="splash">
+  <div class="splash-logo">POS</div>
+  <div class="splash-title">POS DZ</div>
+  <div class="splash-sub" id="splashMsg">جاري التحميل...</div>
+  <div class="splash-loader"><div class="splash-loader-bar" id="splashBar"></div></div>
+  <div class="err-box" id="errBox">
+    <p id="errMsg">حدث خطأ أثناء التحميل</p>
+    <div>
+      <button onclick="location.reload()">&#x1F504; إعادة المحاولة</button>
+      <button class="sec" onclick="clearAndReload()">&#x1F5D1;&#xFE0F; مسح وإعادة</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+function clearAndReload() {
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+    var req = indexedDB.deleteDatabase('POSDZ_DB');
+    req.onsuccess = function() { location.reload(); };
+    req.onerror   = function() { location.reload(); };
+  } catch(e) { location.reload(); }
+}
+
+function showError(msg) {
+  var bar    = document.getElementById('splashBar');
+  var msgEl  = document.getElementById('splashMsg');
+  var errBox = document.getElementById('errBox');
+  var errMsg = document.getElementById('errMsg');
+  if (bar)    { bar.style.width = '100%'; bar.style.background = '#ef4444'; }
+  if (msgEl)  msgEl.textContent = '';
+  if (errMsg) errMsg.textContent = msg || 'حدث خطأ أثناء التحميل';
+  if (errBox) errBox.style.display = 'block';
+}
+
+(async function() {
+  var bar = document.getElementById('splashBar');
+  var msg = document.getElementById('splashMsg');
+
+  if (typeof openDB === 'undefined') {
+    showError('فشل تحميل app.js — تأكد من وجود الملف في نفس المجلد');
+    return;
+  }
+
+  var steps = [
+    [20, 'فتح قاعدة البيانات...'],
+    [50, 'تحميل الإعدادات...'],
+    [80, 'تطبيق الثيم...'],
+    [95, 'جاهز...']
+  ];
+  var i = 0;
+  var tick = setInterval(function() {
+    if (i < steps.length) {
+      bar.style.width = steps[i][0] + '%';
+      msg.textContent = steps[i][1];
+      i++;
+    }
+  }, 180);
+
+  try {
+    await openDB();
+    clearInterval(tick);
+    bar.style.width = '100%';
+    msg.textContent = 'مرحباً!';
+    if (typeof applyTheme === 'function') await applyTheme();
+    setTimeout(function() {
+      var user = (typeof getSession === 'function') ? getSession() : null;
+      window.location.href = user ? 'sale.html' : 'login.html';
+    }, 380);
+  } catch(e) {
+    clearInterval(tick);
+    showError('خطأ: ' + (e && e.message ? e.message : String(e)));
+  }
+})();
+</script>
+</body>
+</html>
