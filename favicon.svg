@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#5B21B6"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#2d1b69"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- الخلفية المستديرة -->
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#bg)"/>
+
+  <!-- جسم الكاشير -->
+  <!-- الشاشة -->
+  <rect x="80" y="80" width="352" height="200" rx="18" ry="18" fill="url(#screen)" stroke="#A78BFA" stroke-width="6"/>
+  <!-- وميض الشاشة -->
+  <rect x="96" y="96" width="320" height="168" rx="12" ry="12" fill="#0f0a2e" opacity="0.7"/>
+
+  <!-- نص POS على الشاشة -->
+  <text x="256" y="175" font-family="Impact, Arial Black, sans-serif"
+        font-size="108" font-weight="900" text-anchor="middle"
+        fill="#A78BFA" filter="url(#glow)" opacity="0.95">POS</text>
+
+  <!-- خط أخضر تحت النص — مثل شريط السعر -->
+  <rect x="130" y="190" width="252" height="8" rx="4" fill="#34D399" opacity="0.8"/>
+
+  <!-- لوحة المفاتيح / القاعدة -->
+  <rect x="100" y="308" width="312" height="130" rx="14" ry="14" fill="#3b0f8c" stroke="#6D28D9" stroke-width="4"/>
+
+  <!-- أزرار لوحة المفاتيح 3×3 -->
+  <!-- صف 1 -->
+  <rect x="128" y="325" width="52" height="30" rx="7" fill="#5B21B6"/>
+  <rect x="194" y="325" width="52" height="30" rx="7" fill="#5B21B6"/>
+  <rect x="260" y="325" width="52" height="30" rx="7" fill="#5B21B6"/>
+  <!-- صف 2 -->
+  <rect x="128" y="365" width="52" height="30" rx="7" fill="#5B21B6"/>
+  <rect x="194" y="365" width="52" height="30" rx="7" fill="#5B21B6"/>
+  <rect x="260" y="365" width="52" height="30" rx="7" fill="#5B21B6"/>
+  <!-- زر الإدخال الأخضر الكبير -->
+  <rect x="330" y="325" width="64" height="70" rx="10" fill="#059669"/>
+  <!-- علامة ✓ على زر الإدخال -->
+  <text x="362" y="368" font-family="Arial" font-size="36" font-weight="900"
+        text-anchor="middle" fill="#fff">✓</text>
+
+  <!-- شريط الإيصال يخرج من الأسفل -->
+  <rect x="206" y="428" width="100" height="56" rx="0" fill="#fff" opacity="0.92"/>
+  <rect x="218" y="436" width="76" height="5" rx="2" fill="#7C3AED" opacity="0.5"/>
+  <rect x="218" y="447" width="60" height="4" rx="2" fill="#7C3AED" opacity="0.35"/>
+  <rect x="218" y="457" width="68" height="4" rx="2" fill="#7C3AED" opacity="0.35"/>
+  <rect x="218" y="467" width="50" height="4" rx="2" fill="#34D399" opacity="0.7"/>
+
+  <!-- نقطة ضوء في الزاوية — لمسة احترافية -->
+  <circle cx="420" cy="100" r="28" fill="#A78BFA" opacity="0.12"/>
+  <circle cx="420" cy="100" r="12" fill="#A78BFA" opacity="0.18"/>
+</svg>
