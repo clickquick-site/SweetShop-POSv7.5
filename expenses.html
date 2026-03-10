@@ -36,6 +36,18 @@
     .exp-amount   { font-size:1rem; font-weight:900; color:var(--danger); white-space:nowrap; }
     /* ── modal ── */
     .modal-pay { background:var(--bg-card); border-radius:var(--radius); padding:20px; max-width:380px; width:100%; }
+    /* ── زر التشغيل/إيقاف ── */
+    .sync-toggle-wrap { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-dark); margin-bottom:14px; flex-wrap:wrap; }
+    .sync-toggle-label { font-size:0.82rem; font-weight:700; color:var(--text-secondary); flex:1; min-width:150px; }
+    .toggle-switch { position:relative; width:46px; height:24px; flex-shrink:0; }
+    .toggle-switch input { opacity:0; width:0; height:0; }
+    .toggle-slider { position:absolute; cursor:pointer; inset:0; background:#374151; border-radius:24px; transition:.3s; }
+    .toggle-slider:before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.3s; }
+    .toggle-switch input:checked + .toggle-slider { background:#10b981; }
+    .toggle-switch input:checked + .toggle-slider:before { transform:translateX(22px); }
+    .sync-status { font-size:0.75rem; font-weight:800; padding:2px 9px; border-radius:10px; }
+    .sync-on  { background:rgba(16,185,129,0.15); color:#10b981; }
+    .sync-off { background:rgba(107,114,128,0.15); color:#6b7280; }
   </style>
 </head>
 <body>
@@ -66,37 +78,54 @@
 
     <!-- Tabs -->
     <div class="tabs-bar">
-      <button class="tab-btn active" onclick="switchTab('expenses')">💸 المصاريف</button>
-      <button class="tab-btn"        onclick="switchTab('workers')">👷 العمال</button>
+      <button class="tab-btn active" onclick="switchTab('expenses')">💸 المصاريف العامة</button>
+      <button class="tab-btn"        onclick="switchTab('workers')">👷 مصاريف العمال</button>
     </div>
 
     <!-- ══════════════════════════════════════════════ -->
-    <!-- TAB: المصاريف                                  -->
+    <!-- TAB: المصاريف العامة                           -->
     <!-- ══════════════════════════════════════════════ -->
     <div class="tab-content active" id="tab-expenses">
+
 
       <!-- إحصائيات -->
       <div class="exp-stats" id="expStats">
         <div class="exp-stat"><div class="val" id="statToday">0.00</div><div class="lbl">💸 مصاريف اليوم</div></div>
-        <div class="exp-stat"><div class="val" id="statMonth">0.00</div><div class="lbl">📅 مصاريف الشهر</div></div>
-        <div class="exp-stat"><div class="val" id="statCount">0</div><div class="lbl">📋 عدد العمليات</div></div>
-        <div class="exp-stat"><div class="val" id="statSalaries">0.00</div><div class="lbl">👷 رواتب الشهر</div></div>
+        <div class="exp-stat" style="border-color:rgba(239,68,68,0.4);"><div class="val" id="statUnpaid" style="color:#ef4444;">0</div><div class="lbl">🔴 الفواتير غير المسددة</div></div>
+        <div class="exp-stat" style="border-color:rgba(16,185,129,0.4);"><div class="val" id="statPaid" style="color:#10b981;">0</div><div class="lbl">✅ الفواتير المسددة</div></div>
+      </div>
+
+      <!-- زر ربط المصاريف بسجل المداخيل -->
+      <div class="sync-toggle-wrap">
+        <div class="sync-toggle-label">
+          🔗 <b>ربط المصاريف المسددة بسجل المداخيل اليومي</b>
+          <div style="font-size:0.72rem;color:var(--text-secondary);margin-top:2px;">عند التشغيل: كل فاتورة تُسدَّد تُسجَّل كسطر خصم في سجل المداخيل</div>
+        </div>
+        <button id="clearExpEntriesBtn" onclick="clearDailyEntries('مصروف عام')"
+          style="background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.3);padding:5px 12px;border-radius:var(--radius-sm);font-family:var(--font-main);font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">
+          🗑️ مسح مصاريف اليوم
+        </button>
+        <span class="sync-status" id="expSyncStatus">إيقاف</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="expSyncToggle" onchange="saveExpSyncState()"/>
+          <span class="toggle-slider"></span>
+        </label>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:18px;">
 
         <!-- نموذج الإضافة -->
         <div class="card">
-          <h3 style="color:var(--primary-light);margin-bottom:16px;font-size:1rem;">➕ إضافة مصروف</h3>
+          <h3 style="color:var(--primary-light);margin-bottom:16px;font-size:1rem;">➕ إضافة مصروف عام</h3>
           <input type="hidden" id="editExpId"/>
           <div class="input-group">
             <label class="input-label">الفئة</label>
             <select class="select-field" id="expCat" onchange="toggleCustomCat()">
-              <option value="كهرباء">⚡ كهرباء</option>
-              <option value="غاز">🔥 غاز</option>
+              <option value="كهرباء وغاز">⚡🔥 كهرباء وغاز</option>
+              <option value="هاتف">📞 هاتف</option>
+              <option value="أنترنت">🌐 أنترنت</option>
               <option value="كراء">🏠 كراء</option>
               <option value="سحب خاص">💰 سحب خاص</option>
-              <option value="عمال">👷 رواتب عمال</option>
               <option value="صيانة">🔧 صيانة</option>
               <option value="نقل">🚚 نقل / شحن</option>
               <option value="مستلزمات">📦 مستلزمات</option>
@@ -130,16 +159,16 @@
         <!-- القائمة -->
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:12px 16px;background:var(--bg-dark);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span style="font-weight:700;color:var(--primary-light);">سجل المصاريف</span>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <input class="input-field" type="date" id="filterExpDate" style="width:140px;font-size:0.82rem;" onchange="loadExpenses()"/>
+            <span style="font-weight:700;color:var(--primary-light);">سجل المصاريف العامة</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input class="input-field" type="date" id="filterExpDate" style="width:140px;font-size:0.82rem;" onchange="loadExpenses()" title="بحث في الفواتير المسددة بالتاريخ"/>
               <select class="select-field" id="filterExpCat" style="width:130px;font-size:0.82rem;" onchange="loadExpenses()">
                 <option value="">كل الفئات</option>
-                <option value="كهرباء">⚡ كهرباء</option>
-                <option value="غاز">🔥 غاز</option>
+                <option value="كهرباء وغاز">⚡🔥 كهرباء وغاز</option>
+                <option value="هاتف">📞 هاتف</option>
+                <option value="أنترنت">🌐 أنترنت</option>
                 <option value="كراء">🏠 كراء</option>
                 <option value="سحب خاص">💰 سحب خاص</option>
-                <option value="عمال">👷 عمال</option>
                 <option value="صيانة">🔧 صيانة</option>
                 <option value="نقل">🚚 نقل</option>
                 <option value="مستلزمات">📦 مستلزمات</option>
@@ -147,15 +176,50 @@
               </select>
             </div>
           </div>
-          <div id="expListWrap" style="max-height:440px;overflow-y:auto;padding:10px 12px;"></div>
+          <!-- قسم الفواتير غير المسددة -->
+          <div style="padding:8px 12px 2px;background:rgba(239,68,68,0.06);border-bottom:1px solid rgba(239,68,68,0.2);">
+            <span style="font-size:0.78rem;font-weight:800;color:#ef4444;">🔴 الفواتير غير المسددة</span>
+          </div>
+          <div id="expUnpaidWrap" style="max-height:260px;overflow-y:auto;padding:8px 12px;"></div>
+          <!-- قسم الفواتير المسددة -->
+          <div style="padding:8px 12px 2px;background:rgba(16,185,129,0.06);border-top:2px solid var(--border);border-bottom:1px solid rgba(16,185,129,0.2);">
+            <span style="font-size:0.78rem;font-weight:800;color:#10b981;">✅ الفواتير المسددة</span>
+            <span style="font-size:0.72rem;color:var(--text-secondary);margin-right:8px;">(حدد تاريخاً للبحث)</span>
+          </div>
+          <div id="expPaidWrap" style="max-height:220px;overflow-y:auto;padding:8px 12px;"></div>
         </div>
       </div>
     </div>
 
     <!-- ══════════════════════════════════════════════ -->
-    <!-- TAB: العمال                                    -->
+    <!-- TAB: مصاريف العمال                             -->
     <!-- ══════════════════════════════════════════════ -->
     <div class="tab-content" id="tab-workers">
+
+      <!-- إحصاء رواتب العمال -->
+      <div class="exp-stats" style="margin-bottom:16px;">
+        <div class="exp-stat" style="border-color:rgba(16,185,129,0.4);">
+          <div class="val" id="statWorkerSalaries" style="color:#10b981;">0.00</div>
+          <div class="lbl">👷 رواتب العمال هذا الشهر</div>
+        </div>
+      </div>
+
+      <!-- زر ربط رواتب العمال بسجل المداخيل -->
+      <div class="sync-toggle-wrap" style="border-color:rgba(16,185,129,0.3);">
+        <div class="sync-toggle-label">
+          🔗 <b>ربط رواتب العمال بسجل المداخيل اليومي</b>
+          <div style="font-size:0.72rem;color:var(--text-secondary);margin-top:2px;">عند التشغيل: كل راتب يُسدَّد يُسجَّل كسطر خصم في سجل مداخيل يوم التسديد</div>
+        </div>
+        <button id="clearWorkerEntriesBtn" onclick="clearDailyEntries('راتب')"
+          style="background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.3);padding:5px 12px;border-radius:var(--radius-sm);font-family:var(--font-main);font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">
+          🗑️ مسح رواتب اليوم
+        </button>
+        <span class="sync-status" id="workerSyncStatus">إيقاف</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="workerSyncToggle" onchange="saveWorkerSyncState()"/>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
 
       <div style="display:grid;grid-template-columns:1fr 2fr;gap:18px;align-items:start;">
 
@@ -174,9 +238,14 @@
           <div class="input-group">
             <label class="input-label">الراتب الشهري</label>
             <div style="position:relative;">
-              <input class="input-field" type="number" id="wSalary" placeholder="0.00" min="0" step="0.01"/>
+              <input class="input-field" type="text" id="wSalary"
+                placeholder="مثال: 30.000"
+                inputmode="numeric"
+                style="padding-left:40px;letter-spacing:0.05em;"
+                oninput="previewSalary(this)"/>
               <span id="wCurLabel" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.82rem;pointer-events:none;">DA</span>
             </div>
+            <div id="wSalaryPreview" style="display:none;font-size:0.75rem;color:var(--primary-light);font-weight:700;margin-top:4px;padding:3px 8px;background:rgba(124,58,237,0.1);border-radius:5px;border:1px solid rgba(124,58,237,0.25);"></div>
           </div>
           <div class="input-group">
             <label class="input-label">ملاحظة</label>
@@ -198,6 +267,20 @@
             <p style="font-weight:600;">لا يوجد عمال مضافون</p>
           </div>
         </div>
+      </div>
+
+      <!-- سجل مصاريف العمال -->
+      <div class="card" style="margin-top:18px;padding:0;overflow:hidden;">
+        <div style="padding:12px 16px;background:var(--bg-dark);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-weight:700;color:#10b981;">👷 سجل مصاريف العمال</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input class="input-field" type="date" id="filterWorkerExpDate" style="width:140px;font-size:0.82rem;" onchange="loadWorkerExpenses()"/>
+            <select class="select-field" id="filterWorkerName" style="width:150px;font-size:0.82rem;" onchange="loadWorkerExpenses()">
+              <option value="">كل العمال</option>
+            </select>
+          </div>
+        </div>
+        <div id="workerExpListWrap" style="max-height:380px;overflow-y:auto;padding:10px 12px;"></div>
       </div>
     </div>
 
@@ -284,6 +367,106 @@ let allWorkers   = [];
 let currency     = 'DA';
 let _payWorkerId = null;
 
+/* ══════════════════════════════════════════════
+   إدارة حالة زر التشغيل/إيقاف
+══════════════════════════════════════════════ */
+function isExpSyncOn()    { return localStorage.getItem('pos_expSyncOn')    === '1'; }
+function isWorkerSyncOn() { return localStorage.getItem('pos_workerSyncOn') === '1'; }
+
+function saveExpSyncState() {
+  const on = document.getElementById('expSyncToggle')?.checked;
+  localStorage.setItem('pos_expSyncOn', on ? '1' : '0');
+  updateSyncUI();
+  toast(on ? '✅ تم تفعيل ربط المصاريف بسجل المداخيل' : '🔴 تم إيقاف ربط المصاريف', on ? 'success' : 'info');
+}
+
+function saveWorkerSyncState() {
+  const on = document.getElementById('workerSyncToggle')?.checked;
+  localStorage.setItem('pos_workerSyncOn', on ? '1' : '0');
+  updateSyncUI();
+  toast(on ? '✅ تم تفعيل ربط الرواتب بسجل المداخيل' : '🔴 تم إيقاف ربط الرواتب', on ? 'success' : 'info');
+}
+
+function updateSyncUI() {
+  const expOn    = isExpSyncOn();
+  const wrkOn    = isWorkerSyncOn();
+  const expTog   = document.getElementById('expSyncToggle');
+  const wrkTog   = document.getElementById('workerSyncToggle');
+  const expSt    = document.getElementById('expSyncStatus');
+  const wrkSt    = document.getElementById('workerSyncStatus');
+  if (expTog) expTog.checked = expOn;
+  if (wrkTog) wrkTog.checked = wrkOn;
+  if (expSt)  { expSt.textContent = expOn ? 'تشغيل' : 'إيقاف'; expSt.className = 'sync-status ' + (expOn ? 'sync-on' : 'sync-off'); }
+  if (wrkSt)  { wrkSt.textContent = wrkOn ? 'تشغيل' : 'إيقاف'; wrkSt.className = 'sync-status ' + (wrkOn ? 'sync-on' : 'sync-off'); }
+
+  // ── تعطيل زر المسح عند تشغيل الزر ──
+  const clearExpBtn    = document.getElementById('clearExpEntriesBtn');
+  const clearWorkerBtn = document.getElementById('clearWorkerEntriesBtn');
+  if (clearExpBtn) {
+    clearExpBtn.disabled = expOn;
+    clearExpBtn.style.opacity = expOn ? '0.35' : '1';
+    clearExpBtn.style.cursor  = expOn ? 'not-allowed' : 'pointer';
+    clearExpBtn.title = expOn ? '⛔ أوقف الربط أولاً قبل المسح' : 'مسح مصاريف اليوم من سجل المداخيل';
+  }
+  if (clearWorkerBtn) {
+    clearWorkerBtn.disabled = wrkOn;
+    clearWorkerBtn.style.opacity = wrkOn ? '0.35' : '1';
+    clearWorkerBtn.style.cursor  = wrkOn ? 'not-allowed' : 'pointer';
+    clearWorkerBtn.title = wrkOn ? '⛔ أوقف الربط أولاً قبل المسح' : 'مسح رواتب اليوم من سجل المداخيل';
+  }
+}
+
+/* ══════════════════════════════════════════════
+   دالة مسح سجلات اليوم حسب النوع
+   type: 'مصروف عام' | 'راتب'
+   — تمسح فقط السجلات من pos_dailyEntries
+   — لا تمس الفواتير أو الرواتب المسجّلة في IndexedDB
+   — مستحيل المسح إذا كان الزر مشغّلاً
+══════════════════════════════════════════════ */
+async function clearDailyEntries(type) {
+  // حماية: لا مسح إذا كان الزر مشغّلاً
+  if (type === 'مصروف عام' && isExpSyncOn()) {
+    toast('⛔ أوقف الربط أولاً قبل المسح', 'warning'); return;
+  }
+  if (type === 'راتب' && isWorkerSyncOn()) {
+    toast('⛔ أوقف الربط أولاً قبل المسح', 'warning'); return;
+  }
+
+  const label = type === 'راتب' ? 'رواتب العمال' : 'المصاريف العامة';
+  if (!await customConfirmAsync(`مسح سجلات "${label}" من سجل المداخيل اليومي؟\n⚠️ هذا لن يحذف الفواتير أو الرواتب الأصلية.`)) return;
+
+  const key = 'pos_dailyEntries_' + todayIso();
+  let entries = [];
+  try { entries = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) { entries = []; }
+
+  // احتفظ فقط بالسجلات من النوع الآخر
+  const remaining = entries.filter(e => e.type !== type);
+  localStorage.setItem(key, JSON.stringify(remaining));
+
+  const removed = entries.length - remaining.length;
+  toast(`✅ تم مسح ${removed} سجل من "${label}" في سجل المداخيل`, 'success');
+}
+
+/* ══════════════════════════════════════════════
+   دالة تسجيل الخصم في سجل المداخيل اليومي
+   النوع: 'مصروف عام' أو 'راتب'
+   المفتاح في localStorage: pos_dailyEntries_YYYY-MM-DD
+══════════════════════════════════════════════ */
+function addDailyEntry(dateStr, type, label, amount) {
+  // dateStr = YYYY-MM-DD
+  const key = 'pos_dailyEntries_' + dateStr;
+  let entries = [];
+  try { entries = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) { entries = []; }
+  entries.push({
+    id: Date.now() + Math.random(),
+    type,          // 'مصروف عام' | 'راتب'
+    label,         // اسم الفئة أو اسم العامل
+    amount,        // قيمة سالبة دائماً (خصم)
+    createdAt: new Date().toISOString()
+  });
+  localStorage.setItem(key, JSON.stringify(entries));
+}
+
 /* ── helpers ── */
 function todayIso() {
   const d=new Date(),p=n=>('0'+n).slice(-2);
@@ -296,11 +479,11 @@ function fmtDate(iso) {
   return d.getFullYear()+'/'+p(d.getMonth()+1)+'/'+p(d.getDate());
 }
 function catIcon(cat) {
-  const m={'كهرباء':'⚡','غاز':'🔥','كراء':'🏠','سحب خاص':'💰','عمال':'👷','صيانة':'🔧','نقل':'🚚','مستلزمات':'📦'};
+  const m={'كهرباء وغاز':'⚡🔥','هاتف':'📞','أنترنت':'🌐','كراء':'🏠','سحب خاص':'💰','عمال':'👷','صيانة':'🔧','نقل':'🚚','مستلزمات':'📦'};
   return m[cat]||'💸';
 }
 function catColor(cat) {
-  const m={'كهرباء':'#f59e0b','غاز':'#ef4444','كراء':'#3b82f6','سحب خاص':'#8b5cf6','عمال':'#10b981','صيانة':'#6b7280','نقل':'#0ea5e9','مستلزمات':'#f97316'};
+  const m={'كهرباء وغاز':'#f59e0b','هاتف':'#60a5fa','أنترنت':'#34d399','كراء':'#3b82f6','سحب خاص':'#8b5cf6','عمال':'#10b981','صيانة':'#6b7280','نقل':'#0ea5e9','مستلزمات':'#f97316'};
   return m[cat]||'#6b7280';
 }
 
@@ -311,9 +494,12 @@ async function init() {
   await initApp();
   currency = await getSetting('currency') || 'DA';
   document.getElementById('wCurLabel').textContent = currency;
+  // تهيئة تاريخ النموذج والفلتر باليوم الحالي
   document.getElementById('filterExpDate').value = todayIso();
+  document.getElementById('expDate').value        = todayIso();
+  updateSyncUI(); // تحميل حالة الأزرار من localStorage
   await loadExpenses();
-  await loadWorkers();
+  try { await loadWorkers(); } catch(e) { console.warn('workers store:', e); }
   await updateStats();
   // Enter shortcuts
   document.getElementById('expAmt')?.addEventListener('keydown', e => { if(e.key==='Enter') saveExpense(); });
@@ -327,16 +513,53 @@ function switchTab(name) {
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   document.getElementById('tab-'+name)?.classList.add('active');
   if(name==='expenses') loadExpenses();
-  if(name==='workers')  loadWorkers();
+  if(name==='workers')  { loadWorkers(); loadWorkerExpenses(); }
 }
 
 /* ══════════════════════════════════════════════
-   قسم المصاريف
+   قسم المصاريف العامة
 ══════════════════════════════════════════════ */
+
+
+// ── تحليل الراتب — النقطة كفاصل ألفي جزائري ──────────────────
+// 30.000 → 30000 | 1.500.000 → 1500000 | 30000 → 30000 | 15.5 → 15.5
+function parseSalary(raw) {
+  if (!raw) return 0;
+  const s = raw.trim().replace(/\s/g, '');
+  if (!s) return 0;
+  const dots = (s.match(/\./g) || []).length;
+  if (dots === 0) return parseFloat(s) || 0;
+  // نقطة واحدة: انظر عدد الأرقام بعدها
+  if (dots === 1) {
+    const afterDot = s.split('.')[1] || '';
+    // 3 أرقام بعد النقطة = فاصل ألفي (30.000 = 30000)
+    // 1 أو 2 رقم = كسر عشري (15.5 أو 15.50)
+    if (afterDot.length === 3) return parseFloat(s.replace('.', '')) || 0;
+    return parseFloat(s) || 0;
+  }
+  // نقاط متعددة = كلها فواصل ألفية (1.500.000)
+  return parseFloat(s.replace(/\./g, '')) || 0;
+}
+
+function previewSalary(el) {
+  const val = parseSalary(el.value);
+  const preview = document.getElementById('wSalaryPreview');
+  if (!preview) return;
+  if (val > 0 && el.value.trim()) {
+    preview.style.display = '';
+    preview.textContent = '= ' + val.toLocaleString('ar-DZ') + ' ' + currency;
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
 function toggleCustomCat() {
   document.getElementById('customCatGroup').style.display =
     document.getElementById('expCat').value === 'أخرى' ? '' : 'none';
 }
+
+// الفئات المقيّدة: مرة واحدة في الشهر — لا تاريخ قديم
+const RESTRICTED_CATS = ['كهرباء وغاز', 'هاتف', 'أنترنت', 'كراء'];
 
 async function saveExpense() {
   const id  = document.getElementById('editExpId').value;
@@ -347,12 +570,37 @@ async function saveExpense() {
   const date = document.getElementById('expDate').value || todayIso();
   const note = document.getElementById('expNote').value.trim();
 
-  if(!cat)            { toast('الفئة مطلوبة','warning'); return; }
-  if(!amt || amt<=0)  { toast('المبلغ يجب أن يكون أكبر من صفر','warning'); return; }
+  if(!cat)           { toast('الفئة مطلوبة','warning'); return; }
+  if(!amt || amt<=0) { toast('المبلغ يجب أن يكون أكبر من صفر','warning'); return; }
 
-  const data = { category:cat, amount:amt, date, note, createdAt:new Date().toISOString() };
-  if(id) { data.id=parseInt(id); await dbPut('expenses',data); toast('تم تعديل المصروف ✅','success'); }
-  else   { await dbAdd('expenses',data); toast('تم حفظ المصروف ✅','success'); }
+  // قواعد الفئات المقيّدة (فقط عند الإضافة وليس التعديل)
+  if (!id && RESTRICTED_CATS.includes(cat)) {
+    // منع التاريخ القديم
+    if (date < todayIso()) {
+      toast(`⛔ لا يمكن تسجيل "${cat}" بتاريخ قديم`, 'warning'); return;
+    }
+    // منع التكرار في نفس الشهر
+    const allExp = await dbGetAll('expenses');
+    const monthStr = date.slice(0,7);
+    const exists = allExp.find(e => e.category === cat && e.date && e.date.startsWith(monthStr));
+    if (exists) {
+      toast(`⚠️ تم تسجيل "${cat}" هذا الشهر (${fmtDate(exists.date)}) — لا يمكن التكرار`, 'warning'); return;
+    }
+  }
+
+  // كل مصروف يُسجَّل كـ "غير مسدد" تلقائياً
+  const data = { category:cat, amount:amt, date, note, isPaid:false, paidDate:null, createdAt:new Date().toISOString() };
+  if(id) {
+    data.id = parseInt(id);
+    // عند التعديل نحافظ على حالة التسديد الأصلية
+    const orig = allExpenses.find(x=>x.id===data.id);
+    if(orig) { data.isPaid = orig.isPaid||false; data.paidDate = orig.paidDate||null; }
+    await dbPut('expenses', data);
+    toast('تم تعديل المصروف ✅','success');
+  } else {
+    await dbAdd('expenses', data);
+    toast('تم حفظ المصروف ✅ — غير مسدد','success');
+  }
 
   clearExpForm();
   await loadExpenses();
@@ -361,7 +609,7 @@ async function saveExpense() {
 
 function clearExpForm() {
   document.getElementById('editExpId').value = '';
-  document.getElementById('expCat').value    = 'كهرباء';
+  document.getElementById('expCat').value    = 'كهرباء وغاز';
   document.getElementById('expAmt').value    = '';
   document.getElementById('expNote').value   = '';
   document.getElementById('expDate').value   = todayIso();
@@ -374,33 +622,69 @@ async function loadExpenses() {
   const dateFilter = document.getElementById('filterExpDate')?.value || '';
   const catFilter  = document.getElementById('filterExpCat')?.value  || '';
 
-  let list = [...allExpenses].sort((a,b)=>new Date(b.date)-new Date(a.date));
-  if(dateFilter) list = list.filter(e=>e.date && e.date.startsWith(dateFilter));
-  if(catFilter)  list = list.filter(e=>e.category===catFilter);
+  // استبعاد مصاريف العمال
+  let list = allExpenses.filter(e => e.category !== 'عمال');
+  if (catFilter) list = list.filter(e => e.category === catFilter);
 
-  const wrap = document.getElementById('expListWrap');
-  if(!list.length) {
-    wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">💸</div><p>لا توجد مصاريف بهذه المعايير</p></div>';
-    return;
+  // ── قسم 1: غير مسددة — تظهر دائماً بصرف النظر عن الفلتر ──
+  let unpaid = list.filter(e => !e.isPaid).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const unpaidWrap = document.getElementById('expUnpaidWrap');
+  if (!unpaid.length) {
+    unpaidWrap.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.85rem;">✅ لا توجد فواتير غير مسددة</div>';
+  } else {
+    unpaidWrap.innerHTML = unpaid.map(e => {
+      const color = catColor(e.category);
+      return `<div class="exp-list-item" style="border-right:3px solid #ef4444;">
+        <div class="exp-cat-icon" style="background:${color}22;border:1px solid ${color}44;">${catIcon(e.category)}</div>
+        <div class="exp-info">
+          <div class="exp-cat">${e.category}</div>
+          ${e.note ? `<div class="exp-note">${e.note}</div>` : ''}
+          <div class="exp-date">📅 تسجيل: ${fmtDate(e.date)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <span class="exp-amount">- ${parseFloat(e.amount).toFixed(2)} ${currency}</span>
+          <span style="font-size:0.7rem;font-weight:700;color:#ef4444;background:rgba(239,68,68,0.1);padding:2px 7px;border-radius:10px;">غير مسدد</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <button class="btn btn-sm btn-success" onclick="payExpense(${e.id})" title="تسديد"><i class="fa-solid fa-check"></i> تسديد</button>
+          <button class="btn btn-sm btn-primary"  onclick="editExpense(${e.id})" title="تعديل">✏️</button>
+          <button class="btn btn-sm btn-danger"   onclick="deleteExpense(${e.id})" title="حذف">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
   }
-  wrap.innerHTML = list.map(e=>{
-    const color = catColor(e.category);
-    return `<div class="exp-list-item">
-      <div class="exp-cat-icon" style="background:${color}22;border:1px solid ${color}44;">${catIcon(e.category)}</div>
-      <div class="exp-info">
-        <div class="exp-cat">${e.category}</div>
-        ${e.note ? `<div class="exp-note">${e.note}</div>` : ''}
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
-        <span class="exp-amount">- ${parseFloat(e.amount).toFixed(2)} ${currency}</span>
-        <span class="exp-date">${fmtDate(e.date)}</span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        <button class="btn btn-sm btn-primary" onclick="editExpense(${e.id})" title="تعديل">✏️</button>
-        <button class="btn btn-sm btn-danger"  onclick="deleteExpense(${e.id})" title="حذف">🗑️</button>
-      </div>
-    </div>`;
-  }).join('');
+
+  // ── قسم 2: مسددة — تُفلتر بتاريخ التسديد paidDate ──
+  let paid = list.filter(e => e.isPaid);
+  if (dateFilter) paid = paid.filter(e => e.paidDate && e.paidDate.startsWith(dateFilter));
+  else paid = []; // لا تُعرض إلا عند اختيار تاريخ
+  paid.sort((a,b)=>new Date(b.paidDate)-new Date(a.paidDate));
+
+  const paidWrap = document.getElementById('expPaidWrap');
+  if (!dateFilter) {
+    paidWrap.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:0.82rem;">📅 اختر تاريخاً للبحث في الفواتير المسددة</div>';
+  } else if (!paid.length) {
+    paidWrap.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:0.82rem;">لا توجد فواتير مسددة في هذا التاريخ</div>';
+  } else {
+    paidWrap.innerHTML = paid.map(e => {
+      const color = catColor(e.category);
+      return `<div class="exp-list-item" style="border-right:3px solid #10b981;opacity:0.85;">
+        <div class="exp-cat-icon" style="background:${color}22;border:1px solid ${color}44;">${catIcon(e.category)}</div>
+        <div class="exp-info">
+          <div class="exp-cat">${e.category}</div>
+          ${e.note ? `<div class="exp-note">${e.note}</div>` : ''}
+          <div class="exp-date">📅 تسجيل: ${fmtDate(e.date)} &nbsp;|&nbsp; ✅ تسديد: ${fmtDate(e.paidDate)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <span class="exp-amount" style="color:#10b981;">- ${parseFloat(e.amount).toFixed(2)} ${currency}</span>
+          <span style="font-size:0.7rem;font-weight:700;color:#10b981;background:rgba(16,185,129,0.1);padding:2px 7px;border-radius:10px;">مسدد</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <button class="btn btn-sm btn-danger" onclick="deleteExpense(${e.id})" title="حذف">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
 }
 
 async function editExpense(id) {
@@ -431,7 +715,7 @@ async function saveWorker() {
   const id        = document.getElementById('editWorkerId').value;
   const firstName = document.getElementById('wFirstName').value.trim();
   const lastName  = document.getElementById('wLastName').value.trim();
-  const salary    = parseFloat(document.getElementById('wSalary').value);
+  const salary    = parseSalary(document.getElementById('wSalary').value);
   const note      = document.getElementById('wNote').value.trim();
 
   if(!firstName)       { toast('الاسم مطلوب','warning'); return; }
@@ -527,11 +811,59 @@ async function editWorker(id) {
   document.getElementById('editWorkerId').value    = w.id;
   document.getElementById('wFirstName').value      = w.firstName;
   document.getElementById('wLastName').value       = w.lastName;
-  document.getElementById('wSalary').value         = w.salary;
+  document.getElementById('wSalary').value = w.salary;
+  previewSalary(document.getElementById('wSalary'));
   document.getElementById('wNote').value           = w.note || '';
   document.getElementById('workerFormTitle').textContent = '✏️ تعديل بيانات العامل';
   document.getElementById('workerSaveLbl').textContent   = 'حفظ التعديلات';
   document.querySelector('#tab-workers .card')?.scrollIntoView({behavior:'smooth'});
+}
+
+async function loadWorkerExpenses() {
+  const allExp    = await dbGetAll('expenses');
+  const dateFilter = document.getElementById('filterWorkerExpDate')?.value || '';
+
+  // ملء قائمة العمال في الفلتر
+  const sel = document.getElementById('filterWorkerName');
+  if (sel) {
+    const workers = await dbGetAll('workers');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">كل العمال</option>';
+    workers.forEach(w => {
+      const o = document.createElement('option');
+      o.value = `${w.firstName} ${w.lastName}`;
+      o.textContent = `${w.firstName} ${w.lastName}`;
+      sel.appendChild(o);
+    });
+    sel.value = cur;
+  }
+  const nameFilter = document.getElementById('filterWorkerName')?.value || '';
+
+  let list = allExp
+    .filter(e => e.category === 'عمال')
+    .sort((a,b) => new Date(b.date) - new Date(a.date));
+  if (dateFilter) list = list.filter(e => e.date?.startsWith(dateFilter));
+  if (nameFilter) list = list.filter(e => e.note?.includes(nameFilter));
+
+  const wrap = document.getElementById('workerExpListWrap');
+  if (!wrap) return;
+  if (!list.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-secondary);font-weight:600;">لا توجد مصاريف عمال بهذه المعايير</div>';
+    return;
+  }
+  const total = list.reduce((s,e) => s + parseFloat(e.amount||0), 0);
+  wrap.innerHTML = list.map(e => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);">
+      <div style="font-size:1.2rem;">👷</div>
+      <div style="flex:1;">
+        <div style="font-weight:700;font-size:0.88rem;">${e.note || 'راتب عامل'}</div>
+        <div style="font-size:0.72rem;color:var(--text-secondary);">${fmtDate(e.date)}</div>
+      </div>
+      <span style="font-weight:900;color:#10b981;">- ${parseFloat(e.amount).toFixed(2)} ${currency}</span>
+    </div>`).join('')
+  + `<div style="padding:10px 14px;background:var(--bg-dark);font-weight:800;text-align:center;color:#10b981;border-top:2px solid var(--border);">
+       الإجمالي: ${total.toFixed(2)} ${currency}
+     </div>`;
 }
 
 async function deleteWorker(id) {
@@ -617,6 +949,17 @@ async function confirmPayWorker() {
 
   closeModal('payWorkerModal');
   toast(`✅ تم تسجيل دفع ${amt.toFixed(2)} ${currency} لـ ${w.firstName} ${w.lastName}`, 'success', 3500);
+
+  // ── ربط بسجل المداخيل إذا كان زر التشغيل مفعّلاً ──
+  if (isWorkerSyncOn()) {
+    addDailyEntry(
+      todayIso(),
+      'راتب',
+      `راتب — ${w.firstName} ${w.lastName}${note ? ' (' + note + ')' : ''}`,
+      amt
+    );
+  }
+
   await loadWorkers();
   await loadExpenses();
   await updateStats();
@@ -655,19 +998,56 @@ async function showWorkerHistory(workerId) {
   openModal('workerHistoryModal');
 }
 
-/* ── إحصائيات ── */
-async function updateStats() {
-  const allExp  = await dbGetAll('expenses');
-  const today   = todayIso();
-  const month   = today.slice(0,7);
-  const expToday = allExp.filter(e=>e.date&&e.date.startsWith(today)).reduce((s,e)=>s+e.amount,0);
-  const expMonth = allExp.filter(e=>e.date&&e.date.startsWith(month)).reduce((s,e)=>s+e.amount,0);
-  const salMonth = allExp.filter(e=>e.date&&e.date.startsWith(month)&&e.category==='عمال').reduce((s,e)=>s+e.amount,0);
+// ── تسديد فاتورة ─────────────────────────────
+async function payExpense(id) {
+  const e = allExpenses.find(x => x.id === id);
+  if (!e) return;
+  if (!await customConfirmAsync(`تأكيد تسديد فاتورة "${e.category}" — ${parseFloat(e.amount).toFixed(2)} ${currency} ؟\nتاريخ التسديد: ${fmtDate(todayIso())}`)) return;
+  const updated = { ...e, isPaid: true, paidDate: todayIso() };
+  await dbPut('expenses', updated);
 
-  document.getElementById('statToday').textContent    = expToday.toFixed(2) + ' ' + currency;
-  document.getElementById('statMonth').textContent    = expMonth.toFixed(2) + ' ' + currency;
-  document.getElementById('statCount').textContent    = allExp.filter(e=>e.date&&e.date.startsWith(month)).length;
-  document.getElementById('statSalaries').textContent = salMonth.toFixed(2) + ' ' + currency;
+  // ── ربط بسجل المداخيل إذا كان زر التشغيل مفعّلاً ──
+  if (isExpSyncOn()) {
+    addDailyEntry(
+      todayIso(),
+      'مصروف عام',
+      `مصروف عام — ${e.category}${e.note ? ' (' + e.note + ')' : ''}`,
+      parseFloat(e.amount)
+    );
+  }
+
+  toast(`✅ تم تسديد فاتورة ${e.category}`, 'success');
+  await loadExpenses();
+  await updateStats();
+}
+
+async function updateStats() {
+  const allExp = await dbGetAll('expenses');
+  const today  = todayIso();
+  const month  = today.slice(0,7);
+  const general = allExp.filter(e => e.category !== 'عمال');
+
+  // مصاريف اليوم = مدفوعة اليوم + مصاريف غير مقيدة بتاريخ اليوم
+  const expToday = general
+    .filter(e => (e.isPaid && e.paidDate === today) || (!e.isPaid && e.date === today))
+    .reduce((s,e) => s + parseFloat(e.amount||0), 0);
+
+  // عدد الفواتير غير المسددة
+  const unpaidList = general.filter(e => !e.isPaid);
+  const unpaidTotal = unpaidList.reduce((s,e) => s + parseFloat(e.amount||0), 0);
+
+  // فواتير مسددة هذا الشهر
+  const paidList = general.filter(e => e.isPaid && e.paidDate && e.paidDate.startsWith(month));
+  const paidTotal = paidList.reduce((s,e) => s + parseFloat(e.amount||0), 0);
+
+  document.getElementById('statToday').textContent  = expToday.toFixed(2) + ' ' + currency;
+  document.getElementById('statUnpaid').textContent = unpaidList.length + (unpaidTotal>0 ? ` (${unpaidTotal.toFixed(0)})` : '');
+  document.getElementById('statPaid').textContent   = paidList.length   + (paidTotal>0  ? ` (${paidTotal.toFixed(0)})`  : '');
+
+  // رواتب العمال هذا الشهر
+  const salMonth = allExp.filter(e=>e.category==='عمال'&&e.date&&e.date.startsWith(month)).reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const salEl = document.getElementById('statWorkerSalaries');
+  if (salEl) salEl.textContent = salMonth.toFixed(2) + ' ' + currency;
 }
 
 function doLogout() {
