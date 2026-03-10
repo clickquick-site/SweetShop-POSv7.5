@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+  <link rel="shortcut icon" href="favicon.svg"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>POS DZ - إدارة المستخدمين</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+</head>
+<body>
+<div class="bg-animated"></div>
+<div class="page-wrapper">
+    <header class="app-header">
+    <button class="menu-btn" id="menuBtn" title="القائمة الرئيسية"><i class="fa-solid fa-bars"></i></button>
+    <button id="_notifBell" class="notif-bell" title="الإشعارات" onclick="_toggleNotifPanel&&_toggleNotifPanel()">
+      <i class="fa-solid fa-bell"></i>
+      <span id="_notifBadge" class="notif-badge" style="display:none;"></span>
+    </button>
+    <span class="store-name" id="headerStoreName">اسم المتجر</span>
+    
+    <div class="app-brand">
+      <span class="brand-title">POS DZ</span>
+      <span class="brand-clock" id="clockDisplay"></span>
+    </div>
+  </header>
+  <div class="main-content">
+    <div class="section-header">
+      <a href="sale.html" class="back-btn">← <span data-i18n="btnBack">رجوع</span></a>
+      <h2 class="page-title"><span data-i18n="titleUsers">إدارة المستخدمين</span></h2>
+      <button class="btn btn-primary" onclick="openModal('addUserModal')"><span data-i18n="userBtnAdd">إضافة مستخدم</span></button>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="data-table">
+        <thead><tr><th data-i18n="userColName">المستخدم</th><th data-i18n="userColRole">الصلاحية</th><th data-i18n="userColDate">تاريخ الإنشاء</th><th data-i18n="invColActions">إجراءات</th></tr></thead>
+        <tbody id="usersTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal-overlay" id="addUserModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title" id="userModalTitle"><span data-i18n="userBtnAdd">إضافة مستخدم</span></span>
+      <button class="modal-close" onclick="closeModal('addUserModal')">✕</button>
+    </div>
+    <input type="hidden" id="editUserId"/>
+    <div class="input-group">
+      <label class="input-label"><span data-i18n="userLabelName">اسم المستخدم</span></label>
+      <input class="input-field" type="text" id="userUsername" placeholder="اسم المستخدم"/>
+    </div>
+    <div class="input-group">
+      <label class="input-label"><span data-i18n="userLabelPass">الرقم السري</span></label>
+      <input class="input-field" type="password" id="userPassword" placeholder="الرقم السري"/>
+    </div>
+    <div class="input-group">
+      <label class="input-label">🛡️ الصلاحية</label>
+      <select class="select-field" id="userRole">
+        <option value="seller">👤 بائع (صلاحيات محدودة)</option>
+        <option value="manager">🛡️ مدير مساعد (كل الصلاحيات)</option>
+      </select>
+    </div>
+    <div id="userRoleInfo" class="alert alert-info text-sm" style="margin-top:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-success" onclick="saveUser()">💾 حفظ</button>
+      <button class="btn btn-secondary" onclick="closeModal('addUserModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Change Admin Password Modal -->
+<div class="modal-overlay" id="adminPassModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title">🔑 تغيير كلمة مرور ADMIN</span>
+      <button class="modal-close" onclick="closeModal('adminPassModal')">✕</button>
+    </div>
+    <div class="input-group">
+      <label class="input-label">الرقم السري الحالي</label>
+      <input class="input-field" type="password" id="oldPass" placeholder="الرقم الحالي"/>
+    </div>
+    <div class="input-group">
+      <label class="input-label">الرقم السري الجديد</label>
+      <input class="input-field" type="password" id="newPass" placeholder="الرقم الجديد"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-success" onclick="changeAdminPass()">💾 تغيير</button>
+      <button class="btn btn-secondary" onclick="closeModal('adminPassModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-header-top">
+        <div class="sidebar-brand-text">POS DZ</div>
+        <button class="sidebar-close-btn" id="sidebarCloseBtn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="sidebar-user-box">
+        <div class="sidebar-user-avatar"><span id="sidebarUserInitial">A</span></div>
+        <div class="sidebar-user-info">
+          <span class="sidebar-user-name" id="sidebarUserName">المستخدم</span>
+          <span class="sidebar-user-role" id="sidebarUserRole">مدير</span>
+        </div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="nav-group-label" data-i18n="navGroupSale">المبيعات</span>
+      <a class="nav-item" href="sale.html"><span class="nav-label" data-i18n="navSale">واجهة البيع</span></a>
+      <span class="nav-group-label" data-i18n="navGroupManage">الإدارة</span>
+      <a class="nav-item" href="inventory.html" data-role="admin,manager"><span class="nav-label" data-i18n="navInventory">المخزون</span></a>
+      <a class="nav-item" href="customers.html"><span class="nav-label" data-i18n="navCustomers">الزبائن</span></a>
+      <a class="nav-item" href="reports.html" data-role="admin,manager"><span class="nav-label" data-i18n="navReports">إدارة الأعمال</span></a>
+      <a class="nav-item" href="suppliers.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSuppliers">الموردون</span></a>
+      <span class="nav-group-label" data-i18n="navGroupSystem">النظام</span>
+      <a class="nav-item active" href="users.html" data-role="admin"><span class="nav-label" data-i18n="navUsers">المستخدمون</span></a>
+      <a class="nav-item" href="settings.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSettings">الإعدادات</span></a>
+
+      <div class="nav-item danger" onclick="doLogout()"><span class="nav-label" data-i18n="navLogout">خروج</span></div>
+    </nav>
+    <div class="sidebar-footer"><span id="sidebarVersion">v6.0.0</span><span>POS DZ 2026</span></div>
+  </div>
+<div id="toast-container"></div>
+<script src="app.js"></script>
+<script src="sync.js"></script>
+<script>
+const ROLE_LABELS = { admin: '👑 مدير رئيسي', manager: '🛡️ مدير مساعد', seller: '👤 بائع' };
+const ROLE_PERMS = {
+  manager: 'كل الصلاحيات: البيع، المخزون، الزبائن، الأعمال، الموزعين، الإعدادات',
+  seller: 'البيع فقط + الاطلاع على الديون + قبول ديون للزبائن المسجلين'
+};
+
+async function init() {
+  requireAuth();
+  requireRole(['admin']);
+  await initApp();
+  loadUsers();
+  document.getElementById('userRole').addEventListener('change', function() {
+    document.getElementById('userRoleInfo').textContent = ROLE_PERMS[this.value] || '';
+  });
+  document.getElementById('userRoleInfo').textContent = ROLE_PERMS['seller'];
+}
+
+async function loadUsers() {
+  const users = await dbGetAll('users');
+  const currentUser = getSession();
+  const tbody = document.getElementById('usersTbody');
+  tbody.innerHTML = users.map(u => {
+    const isAdmin = u.role === 'admin';
+    const actions = isAdmin
+      ? `<button class="btn btn-sm btn-warning" onclick="openModal('adminPassModal')">🔑 تغيير كلمة المرور</button>`
+      : `<button class="btn btn-sm btn-primary" onclick="editUser(${u.id})">✏️ تعديل</button>
+         <button class="btn btn-sm btn-danger"  onclick="deleteUser(${u.id})">🗑️ حذف</button>`;
+    const adminBadge = isAdmin ? `<span style="font-size:0.72rem;color:var(--warning);display:block;">لا يمكن تعديل المدير الرئيسي إلا من هنا</span>` : '';
+    return `<tr>
+      <td><b>${u.username}</b>${adminBadge}</td>
+      <td><span class="badge ${u.role==='admin'?'badge-primary':u.role==='manager'?'badge-info':'badge-success'}">${ROLE_LABELS[u.role]||u.role}</span></td>
+      <td>${formatDate(u.createdAt)}</td>
+      <td class="actions">${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function saveUser() {
+  const id       = document.getElementById('editUserId').value;
+  const username = document.getElementById('userUsername').value.trim();
+  const password = document.getElementById('userPassword').value.trim();
+  const role     = document.getElementById('userRole').value;
+
+  if (!username) { toast('اسم المستخدم مطلوب', 'warning'); return; }
+
+  // تحقق من تكرار الاسم
+  const allUsers = await dbGetAll('users');
+  const dup = allUsers.find(u => u.username === username && u.id !== parseInt(id));
+  if (dup) { toast('اسم المستخدم موجود مسبقاً', 'warning'); return; }
+
+  if (id) {
+    // تعديل مستخدم موجود
+    const existing = await dbGet('users', parseInt(id));
+    const data = {
+      id      : parseInt(id),
+      username: username,
+      role    : role,
+      createdAt: existing.createdAt || new Date().toISOString(),
+      password: password ? await hashPasswordSHA(password) : existing.password
+    };
+    await dbPut('users', data);
+    toast('تم تعديل المستخدم ✅', 'success');
+  } else {
+    // إضافة مستخدم جديد
+    if (!password) { toast('الرقم السري مطلوب للمستخدم الجديد', 'warning'); return; }
+    const data = {
+      username : username,
+      role     : role,
+      password : await hashPasswordSHA(password),
+      createdAt: new Date().toISOString()
+    };
+    await dbAdd('users', data);
+    toast('تمت إضافة المستخدم ✅', 'success');
+  }
+
+  closeModal('addUserModal');
+  clearUserForm();
+  loadUsers();
+}
+
+async function editUser(id) {
+  const u = await dbGet('users', id);
+  document.getElementById('editUserId').value = u.id;
+  document.getElementById('userUsername').value = u.username;
+  document.getElementById('userPassword').value = '';
+  document.getElementById('userRole').value = u.role;
+  document.getElementById('userRoleInfo').textContent = ROLE_PERMS[u.role] || '';
+  document.getElementById('userModalTitle').textContent = '✏️ تعديل المستخدم';
+  openModal('addUserModal');
+}
+
+async function deleteUser(id) {
+  const u = await dbGet('users', id);
+  if (u.role === 'admin') { toast('لا يمكن حذف المدير الرئيسي', 'error'); return; }
+  const _ok = await customConfirmAsync('حذف هذا المستخدم؟');
+  if (!_ok) return;
+  await dbDelete('users', id);
+  toast('تم الحذف', 'success');
+  loadUsers();
+}
+
+async function changeAdminPass() {
+  const oldPass = document.getElementById('oldPass').value;
+  const newPass = document.getElementById('newPass').value;
+  if (!oldPass || !newPass) { toast('يرجى ملء الحقول', 'warning'); return; }
+  if (newPass.length < 4)   { toast('الرقم السري الجديد قصير جداً (4 أحرف على الأقل)', 'warning'); return; }
+  const users = await dbGetAll('users');
+  const admin = users.find(u => u.role === 'admin');
+  if (!admin) { toast('لم يتم العثور على المدير الرئيسي', 'error'); return; }
+  const oldOk = await verifyPassword(oldPass, admin.password);
+  if (!oldOk) { toast('الرقم السري الحالي غير صحيح', 'error'); return; }
+  admin.password = await hashPasswordSHA(newPass);
+  await dbPut('users', admin);
+  toast('تم تغيير كلمة المرور بنجاح ✅', 'success');
+  try { notifPasswordChange(admin.username); } catch(e) {}
+  document.getElementById('oldPass').value = '';
+  document.getElementById('newPass').value = '';
+  closeModal('adminPassModal');
+}
+
+function clearUserForm() {
+  document.getElementById('editUserId').value = '';
+  document.getElementById('userUsername').value = '';
+  document.getElementById('userPassword').value = '';
+  document.getElementById('userRole').value = 'seller';
+  document.getElementById('userModalTitle').textContent = '➕ إضافة مستخدم';
+}
+
+function doLogout() { customConfirm('هل تريد تسجيل الخروج؟', () => { clearSession(); window.location.href = 'index.html'; }); }
+init();
+</script>
+</body>
+</html>
