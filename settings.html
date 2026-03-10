@@ -370,7 +370,6 @@
                 <option value="58x20">58 × 20 مم — ضيق</option>
                 <option value="40x30">40 × 30 مم — مربع صغير</option>
                 <option value="40x25">40 × 25 مم</option>
-                <option value="40x20">40 × 20 مم</option>
                 <option value="38x25">38 × 25 مم — صغير</option>
                 <option value="30x20">30 × 20 مم — جواهر</option>
               </select>
@@ -1154,66 +1153,103 @@ function applyFontPreview(fontName) {
 }
 
 // ═══════════════════════════════════════════════════
-// PRINTER
+// PRINTER — اختيار الطابعة من قائمة السيرفر
 // ═══════════════════════════════════════════════════
+
+// تحميل قائمة الطابعات من السيرفر عند فتح الصفحة
+async function loadPrintersFromServer() {
+  try {
+    const ip   = await getSetting('syncServerIP')   || '192.168.1.1';
+    const port = await getSetting('syncServerPort') || '3000';
+    const resp = await fetch(`http://${ip}:${port}/api/printers`, { signal: AbortSignal.timeout(4000) });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return data.printers || [];
+  } catch(e) { return []; }
+}
+
+// فتح نافذة اختيار الطابعة
 async function openPrinterDialog(type) {
-  const paperSize = document.getElementById('paperSize')?.value || '80mm';
-  const widthMap  = {'58mm':'54mm','80mm':'76mm','A5':'148mm','A4':'210mm'};
   const isInvoice = type === 'invoice';
-  const pw = isInvoice ? (widthMap[paperSize] || '76mm') : '60mm';
+  const key       = isInvoice ? 'printerInvoice' : 'printerBarcode';
+  const savedName = (await getSetting(key)) || '';
 
-  // اقرأ الاسم المحفوظ مسبقاً لعرضه كـ placeholder
-  const savedName = (await getSetting(isInvoice ? 'printerInvoice' : 'printerBarcode')) || '';
+  // جلب قائمة الطابعات من السيرفر
+  toast('⏳ جاري تحميل قائمة الطابعات...', 'info');
+  const printers = await loadPrintersFromServer();
 
-  const pageContent = isInvoice
-    ? `<div style="text-align:center;padding:15px;font-family:Arial;">
-        <h2>طباعة تجريبية — فاتورة</h2><hr/>
-        <p>POS DZ — فاتورة تجريبية</p>
-        <p>المنتج × الكمية = المجموع</p>
-        <p style="font-size:18px;font-weight:900;">الإجمالي: 500.00 دج</p>
-       </div>`
-    : `<div style="text-align:center;padding:8px;font-family:Arial;width:56mm;">
-        <p style="font-weight:900;font-size:13px;">POS DZ</p>
-        <p style="font-weight:900;font-size:12px;">سكر — 1كغ</p>
-        <p style="font-family:monospace;font-size:10px;letter-spacing:2px;">6191234567890</p>
-        <p style="font-size:16px;font-weight:900;">150.00 دج</p>
-       </div>`;
+  let chosenName = '';
 
-  const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">
-    <style>@page{size:${pw} auto;margin:4mm;}body{font-family:Arial;color:#000;background:#fff;}@media print{*{-webkit-print-color-adjust:exact;}}</style>
-    </head><body>${pageContent}</body></html>`;
+  if (printers.length > 0) {
+    // بناء نافذة اختيار الطابعة
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;';
 
-  // فتح نافذة الطباعة — بعد انتهائها يظهر dialog لتأكيد اسم الطابعة
-  const w = window.open('', '_blank', 'width=420,height=400,scrollbars=no,toolbar=no,menubar=no');
-  if (!w) { toast('⚠️ أجِز النوافذ المنبثقة ثم أعد المحاولة', 'warning'); return; }
-  w.document.open(); w.document.write(html); w.document.close();
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--bg-card,#1e1b4b);border:2px solid var(--primary,#7C3AED);border-radius:16px;padding:24px;min-width:320px;max-width:460px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.5);';
+    box.innerHTML = `
+      <h3 style="color:var(--primary-light,#A78BFA);margin-bottom:16px;font-size:1.1rem;">
+        🖨️ اختر ${isInvoice ? 'طابعة الفواتير' : 'طابعة الباركود'}
+      </h3>
+      <div id="_printerList" style="display:flex;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto;margin-bottom:16px;">
+        ${printers.map(p => `
+          <div class="_pItem" data-name="${p}"
+            style="padding:10px 14px;border-radius:10px;cursor:pointer;border:2px solid ${p===savedName?'var(--primary,#7C3AED)':'rgba(124,58,237,0.2)'};
+                   background:${p===savedName?'rgba(124,58,237,0.12)':'transparent'};
+                   color:var(--text-primary,#fff);font-size:0.95rem;transition:all .2s;"
+            onmouseover="this.style.borderColor='var(--primary,#7C3AED)';this.style.background='rgba(124,58,237,0.1)'"
+            onmouseout="if(this.dataset.name!=='${savedName}'){this.style.borderColor='rgba(124,58,237,0.2)';this.style.background='transparent'}">
+            🖨️ ${p} ${p===savedName?'<span style="color:#34D399;font-size:0.8rem;"> ✓ محفوظة</span>':''}
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button id="_printerCancelBtn" style="padding:8px 18px;border-radius:8px;border:1px solid rgba(124,58,237,0.3);background:transparent;color:var(--text-secondary,#aaa);cursor:pointer;">إلغاء</button>
+        <button id="_printerClearBtn"  style="padding:8px 18px;border-radius:8px;border:none;background:#dc2626;color:#fff;cursor:pointer;">✕ مسح</button>
+        <button id="_printerSaveBtn"   style="padding:8px 18px;border-radius:8px;border:none;background:var(--primary,#7C3AED);color:#fff;cursor:pointer;font-weight:700;">💾 حفظ</button>
+      </div>`;
 
-  let _nameAsked = false;
-  const askName = async () => {
-    if (_nameAsked) return;
-    _nameAsked = true;
-    try { w.close(); } catch(e) {}
-    const label = isInvoice ? 'اكتب اسم طابعة الفواتير التي اخترتها:' : 'اكتب اسم طابعة الباركود التي اخترتها:';
-    const chosen = await _inputDialog(label, savedName || 'الطابعة الافتراضية');
-    if (chosen && chosen.trim()) {
-      const nameEl = document.getElementById(isInvoice ? 'printerInvoiceName' : 'printerBarcodeName');
-      if (nameEl) nameEl.textContent = chosen.trim();
-      const cardEl = document.getElementById(isInvoice ? 'printerInvoiceCard' : 'printerBarcodeCard');
-      if (cardEl) cardEl.classList.add('selected');
-      await setSetting(isInvoice ? 'printerInvoice' : 'printerBarcode', chosen.trim());
-      toast(`✅ تم حفظ اسم الطابعة: ${chosen.trim()}`, 'success');
-    }
-  };
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 
-  w.onload = function() {
-    setTimeout(() => {
-      try { w.focus(); w.print(); } catch(e) {}
-      w.onafterprint = askName;
-      // fallback إذا لم يُطلق onafterprint
-      setTimeout(askName, 9000);
-    }, 350);
-  };
-  setTimeout(() => { if (w && !w.closed) { try { w.focus(); w.print(); } catch(e) {} } }, 1800);
+    // تفعيل الاختيار
+    let selected = savedName;
+    box.querySelectorAll('._pItem').forEach(el => {
+      el.addEventListener('click', () => {
+        box.querySelectorAll('._pItem').forEach(x => {
+          x.style.borderColor = 'rgba(124,58,237,0.2)';
+          x.style.background  = 'transparent';
+        });
+        el.style.borderColor = 'var(--primary,#7C3AED)';
+        el.style.background  = 'rgba(124,58,237,0.12)';
+        selected = el.dataset.name;
+      });
+    });
+
+    await new Promise(resolve => {
+      box.querySelector('#_printerSaveBtn').onclick = () => { chosenName = selected; overlay.remove(); resolve(); };
+      box.querySelector('#_printerCancelBtn').onclick = () => { overlay.remove(); resolve(); };
+      box.querySelector('#_printerClearBtn').onclick  = () => { chosenName = '__CLEAR__'; overlay.remove(); resolve(); };
+      overlay.addEventListener('click', e => { if(e.target===overlay){ overlay.remove(); resolve(); } });
+    });
+
+  } else {
+    // السيرفر غير متاح — إدخال يدوي
+    const lbl = isInvoice ? 'اكتب اسم طابعة الفواتير:' : 'اكتب اسم طابعة الباركود:';
+    const manual = await _inputDialog(lbl, savedName || '');
+    chosenName = manual || '';
+  }
+
+  // حفظ الاختيار
+  if (chosenName === '__CLEAR__') {
+    clearPrinterName(type);
+  } else if (chosenName && chosenName.trim()) {
+    const nameEl = document.getElementById(isInvoice ? 'printerInvoiceName' : 'printerBarcodeName');
+    if (nameEl) nameEl.textContent = chosenName.trim();
+    const cardEl = document.getElementById(isInvoice ? 'printerInvoiceCard' : 'printerBarcodeCard');
+    if (cardEl) cardEl.classList.add('selected');
+    await setSetting(key, chosenName.trim());
+    toast(`✅ تم حفظ الطابعة: ${chosenName.trim()}`, 'success');
+  }
 }
 
 function clearPrinterName(type) {
