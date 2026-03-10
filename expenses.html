@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+  <link rel="shortcut icon" href="favicon.svg"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>POS DZ - المصاريف والعمال</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <style>
+    /* ── لوحات الإحصائيات ── */
+    .exp-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:18px; }
+    .exp-stat  { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; text-align:center; }
+    .exp-stat .val { font-size:1.4rem; font-weight:900; color:var(--primary-light); margin-bottom:4px; }
+    .exp-stat .lbl { font-size:0.75rem; color:var(--text-secondary); font-weight:600; }
+    /* ── بطاقات العمال ── */
+    .workers-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:14px; }
+    .worker-card  { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; transition:var(--transition); }
+    .worker-card:hover { border-color:rgba(124,58,237,0.4); box-shadow:0 4px 20px rgba(124,58,237,0.12); }
+    .worker-name  { font-size:1.05rem; font-weight:800; color:var(--text-primary); margin-bottom:10px; }
+    .worker-row   { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:0.85rem; }
+    .worker-row .wlbl { color:var(--text-secondary); }
+    .worker-row .wval { font-weight:700; }
+    .progress-bar { height:6px; background:var(--bg-medium); border-radius:3px; margin:8px 0 10px; overflow:hidden; }
+    .progress-fill { height:100%; border-radius:3px; transition:width 0.6s ease; }
+    .worker-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+    /* ── قائمة المصاريف ── */
+    .exp-list-item { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:8px; transition:var(--transition); }
+    .exp-list-item:hover { border-color:rgba(124,58,237,0.3); }
+    .exp-cat-icon { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0; }
+    .exp-info     { flex:1; min-width:0; }
+    .exp-cat      { font-size:0.82rem; font-weight:700; color:var(--primary-light); }
+    .exp-note     { font-size:0.75rem; color:var(--text-secondary); }
+    .exp-date     { font-size:0.72rem; color:var(--text-secondary); white-space:nowrap; }
+    .exp-amount   { font-size:1rem; font-weight:900; color:var(--danger); white-space:nowrap; }
+    /* ── modal ── */
+    .modal-pay { background:var(--bg-card); border-radius:var(--radius); padding:20px; max-width:380px; width:100%; }
+  </style>
+</head>
+<body>
+<div class="bg-animated"></div>
+<div class="page-wrapper">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <button class="menu-btn" id="menuBtn" title="القائمة الرئيسية"><i class="fa-solid fa-bars"></i></button>
+    <button id="_notifBell" class="notif-bell" title="الإشعارات" onclick="_toggleNotifPanel&&_toggleNotifPanel()">
+      <i class="fa-solid fa-bell"></i>
+      <span id="_notifBadge" class="notif-badge" style="display:none;"></span>
+    </button>
+    <span class="store-name" id="headerStoreName">اسم المتجر</span>
+    <div class="app-brand">
+      <span class="brand-title">POS DZ</span>
+      <span class="brand-clock" id="clockDisplay"></span>
+    </div>
+  </header>
+
+  <div class="main-content">
+
+    <!-- Page Header -->
+    <div class="section-header">
+      <a href="sale.html" class="back-btn">← رجوع</a>
+      <h2 class="page-title">💼 إدارة المصاريف والعمال</h2>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-bar">
+      <button class="tab-btn active" onclick="switchTab('expenses')">💸 المصاريف</button>
+      <button class="tab-btn"        onclick="switchTab('workers')">👷 العمال</button>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- TAB: المصاريف                                  -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div class="tab-content active" id="tab-expenses">
+
+      <!-- إحصائيات -->
+      <div class="exp-stats" id="expStats">
+        <div class="exp-stat"><div class="val" id="statToday">0.00</div><div class="lbl">💸 مصاريف اليوم</div></div>
+        <div class="exp-stat"><div class="val" id="statMonth">0.00</div><div class="lbl">📅 مصاريف الشهر</div></div>
+        <div class="exp-stat"><div class="val" id="statCount">0</div><div class="lbl">📋 عدد العمليات</div></div>
+        <div class="exp-stat"><div class="val" id="statSalaries">0.00</div><div class="lbl">👷 رواتب الشهر</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:18px;">
+
+        <!-- نموذج الإضافة -->
+        <div class="card">
+          <h3 style="color:var(--primary-light);margin-bottom:16px;font-size:1rem;">➕ إضافة مصروف</h3>
+          <input type="hidden" id="editExpId"/>
+          <div class="input-group">
+            <label class="input-label">الفئة</label>
+            <select class="select-field" id="expCat" onchange="toggleCustomCat()">
+              <option value="كهرباء">⚡ كهرباء</option>
+              <option value="غاز">🔥 غاز</option>
+              <option value="كراء">🏠 كراء</option>
+              <option value="سحب خاص">💰 سحب خاص</option>
+              <option value="عمال">👷 رواتب عمال</option>
+              <option value="صيانة">🔧 صيانة</option>
+              <option value="نقل">🚚 نقل / شحن</option>
+              <option value="مستلزمات">📦 مستلزمات</option>
+              <option value="أخرى">✍️ أخرى (اكتب)</option>
+            </select>
+          </div>
+          <div class="input-group" id="customCatGroup" style="display:none;">
+            <label class="input-label">اسم الفئة</label>
+            <input class="input-field" type="text" id="expCustomCat" placeholder="اكتب الفئة..."/>
+          </div>
+          <div class="input-group">
+            <label class="input-label">المبلغ</label>
+            <input class="input-field" type="number" id="expAmt" placeholder="0.00" min="0" step="0.01"/>
+          </div>
+          <div class="input-group">
+            <label class="input-label">التاريخ</label>
+            <input class="input-field" type="date" id="expDate"/>
+          </div>
+          <div class="input-group">
+            <label class="input-label">ملاحظة (اختياري)</label>
+            <input class="input-field" type="text" id="expNote" placeholder="تفصيل إضافي..."/>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px;">
+            <button class="btn btn-success btn-full" onclick="saveExpense()">
+              <i class="fa-solid fa-check"></i> <span id="expSaveLbl">حفظ المصروف</span>
+            </button>
+            <button class="btn btn-ghost" onclick="clearExpForm()" title="إلغاء">✕</button>
+          </div>
+        </div>
+
+        <!-- القائمة -->
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="padding:12px 16px;background:var(--bg-dark);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-weight:700;color:var(--primary-light);">سجل المصاريف</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input class="input-field" type="date" id="filterExpDate" style="width:140px;font-size:0.82rem;" onchange="loadExpenses()"/>
+              <select class="select-field" id="filterExpCat" style="width:130px;font-size:0.82rem;" onchange="loadExpenses()">
+                <option value="">كل الفئات</option>
+                <option value="كهرباء">⚡ كهرباء</option>
+                <option value="غاز">🔥 غاز</option>
+                <option value="كراء">🏠 كراء</option>
+                <option value="سحب خاص">💰 سحب خاص</option>
+                <option value="عمال">👷 عمال</option>
+                <option value="صيانة">🔧 صيانة</option>
+                <option value="نقل">🚚 نقل</option>
+                <option value="مستلزمات">📦 مستلزمات</option>
+                <option value="أخرى">✍️ أخرى</option>
+              </select>
+            </div>
+          </div>
+          <div id="expListWrap" style="max-height:440px;overflow-y:auto;padding:10px 12px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- TAB: العمال                                    -->
+    <!-- ══════════════════════════════════════════════ -->
+    <div class="tab-content" id="tab-workers">
+
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:18px;align-items:start;">
+
+        <!-- نموذج إضافة/تعديل عامل -->
+        <div class="card">
+          <h3 style="color:var(--primary-light);margin-bottom:16px;font-size:1rem;" id="workerFormTitle">➕ إضافة عامل</h3>
+          <input type="hidden" id="editWorkerId"/>
+          <div class="input-group">
+            <label class="input-label">الاسم</label>
+            <input class="input-field" type="text" id="wFirstName" placeholder="الاسم الأول"/>
+          </div>
+          <div class="input-group">
+            <label class="input-label">اللقب</label>
+            <input class="input-field" type="text" id="wLastName" placeholder="اللقب"/>
+          </div>
+          <div class="input-group">
+            <label class="input-label">الراتب الشهري</label>
+            <div style="position:relative;">
+              <input class="input-field" type="number" id="wSalary" placeholder="0.00" min="0" step="0.01"/>
+              <span id="wCurLabel" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.82rem;pointer-events:none;">DA</span>
+            </div>
+          </div>
+          <div class="input-group">
+            <label class="input-label">ملاحظة</label>
+            <input class="input-field" type="text" id="wNote" placeholder="منصب، قسم..."/>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px;">
+            <button class="btn btn-success btn-full" onclick="saveWorker()">
+              <i class="fa-solid fa-check"></i> <span id="workerSaveLbl">إضافة العامل</span>
+            </button>
+            <button class="btn btn-ghost" onclick="clearWorkerForm()" title="إلغاء">✕</button>
+          </div>
+        </div>
+
+        <!-- قائمة العمال -->
+        <div>
+          <div id="workersGrid" class="workers-grid"></div>
+          <div id="workersEmpty" style="display:none;text-align:center;padding:50px;color:var(--text-secondary);">
+            <div style="font-size:3rem;opacity:0.3;margin-bottom:12px;">👷</div>
+            <p style="font-weight:600;">لا يوجد عمال مضافون</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ────── Sidebar ────── -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-header-top">
+      <div class="sidebar-brand-text">POS DZ</div>
+      <button class="sidebar-close-btn" id="sidebarCloseBtn"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="sidebar-user-box">
+      <div class="sidebar-user-avatar"><span id="sidebarUserInitial">A</span></div>
+      <div class="sidebar-user-info">
+        <span class="sidebar-user-name" id="sidebarUserName">المستخدم</span>
+        <span class="sidebar-user-role" id="sidebarUserRole">مدير</span>
+      </div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <span class="nav-group-label">المبيعات</span>
+    <a class="nav-item" href="sale.html"><span class="nav-label">واجهة البيع</span></a>
+    <span class="nav-group-label">الإدارة</span>
+    <a class="nav-item" href="inventory.html" data-role="admin,manager"><span class="nav-label">المخزون</span></a>
+    <a class="nav-item" href="customers.html"><span class="nav-label">الزبائن</span></a>
+    <a class="nav-item" href="reports.html" data-role="admin,manager"><span class="nav-label">إدارة الأعمال</span></a>
+    <a class="nav-item" href="suppliers.html" data-role="admin,manager"><span class="nav-label">الموردون</span></a>
+    <a class="nav-item active" href="expenses.html" data-role="admin,manager"><span class="nav-label">المصاريف والعمال</span></a>
+    <span class="nav-group-label">النظام</span>
+    <a class="nav-item" href="users.html" data-role="admin"><span class="nav-label">المستخدمون</span></a>
+    <a class="nav-item" href="settings.html" data-role="admin,manager"><span class="nav-label">الإعدادات</span></a>
+    <div class="nav-item danger" onclick="doLogout()"><span class="nav-label">خروج</span></div>
+  </nav>
+  <div class="sidebar-footer"><span id="sidebarVersion">v6.0.0</span><span>POS DZ 2026</span></div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- ────── Modal: دفع راتب ────── -->
+<div class="modal-overlay" id="payWorkerModal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title" id="payWorkerTitle">💳 دفع راتب</span>
+      <button class="modal-close" onclick="closeModal('payWorkerModal')">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <div id="payWorkerInfo" style="background:var(--bg-dark);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px;font-size:0.88rem;"></div>
+      <div class="input-group" style="margin-bottom:12px;">
+        <label class="input-label">المبلغ المدفوع</label>
+        <input class="input-field" type="number" id="payAmt" placeholder="0.00" min="0" step="0.01" oninput="updatePayPreview()"/>
+      </div>
+      <div id="payPreview" style="display:none;padding:8px 14px;border-radius:var(--radius-sm);margin-bottom:12px;text-align:center;font-weight:700;"></div>
+      <div class="input-group">
+        <label class="input-label">ملاحظة (اختياري)</label>
+        <input class="input-field" type="text" id="payNote" placeholder="مثال: قسط شهر مارس..."/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-success" onclick="confirmPayWorker()"><i class="fa-solid fa-check"></i> تأكيد الدفع</button>
+      <button class="btn btn-ghost" onclick="closeModal('payWorkerModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ────── Modal: سجل مدفوعات عامل ────── -->
+<div class="modal-overlay" id="workerHistoryModal">
+  <div class="modal" style="max-width:540px;">
+    <div class="modal-header">
+      <span class="modal-title" id="workerHistoryTitle">📋 سجل المدفوعات</span>
+      <button class="modal-close" onclick="closeModal('workerHistoryModal')">✕</button>
+    </div>
+    <div id="workerHistoryBody" style="padding:16px;max-height:400px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script src="sync.js"></script>
+<script>
+let allExpenses  = [];
+let allWorkers   = [];
+let currency     = 'DA';
+let _payWorkerId = null;
+
+/* ── helpers ── */
+function todayIso() {
+  const d=new Date(),p=n=>('0'+n).slice(-2);
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+function monthStart() { return todayIso().slice(0,7)+'-01'; }
+function fmtDate(iso) {
+  if(!iso) return '—';
+  const d=new Date(iso),p=n=>('0'+n).slice(-2);
+  return d.getFullYear()+'/'+p(d.getMonth()+1)+'/'+p(d.getDate());
+}
+function catIcon(cat) {
+  const m={'كهرباء':'⚡','غاز':'🔥','كراء':'🏠','سحب خاص':'💰','عمال':'👷','صيانة':'🔧','نقل':'🚚','مستلزمات':'📦'};
+  return m[cat]||'💸';
+}
+function catColor(cat) {
+  const m={'كهرباء':'#f59e0b','غاز':'#ef4444','كراء':'#3b82f6','سحب خاص':'#8b5cf6','عمال':'#10b981','صيانة':'#6b7280','نقل':'#0ea5e9','مستلزمات':'#f97316'};
+  return m[cat]||'#6b7280';
+}
+
+/* ── Init ── */
+async function init() {
+  requireAuth();
+  requireRole(['admin','manager']);
+  await initApp();
+  currency = await getSetting('currency') || 'DA';
+  document.getElementById('wCurLabel').textContent = currency;
+  document.getElementById('filterExpDate').value = todayIso();
+  await loadExpenses();
+  await loadWorkers();
+  await updateStats();
+  // Enter shortcuts
+  document.getElementById('expAmt')?.addEventListener('keydown', e => { if(e.key==='Enter') saveExpense(); });
+  document.getElementById('wLastName')?.addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('wSalary')?.focus(); });
+  document.getElementById('wSalary')?.addEventListener('keydown', e => { if(e.key==='Enter') saveWorker(); });
+}
+
+/* ── Tabs ── */
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active', ['expenses','workers'][i]===name));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+name)?.classList.add('active');
+  if(name==='expenses') loadExpenses();
+  if(name==='workers')  loadWorkers();
+}
+
+/* ══════════════════════════════════════════════
+   قسم المصاريف
+══════════════════════════════════════════════ */
+function toggleCustomCat() {
+  document.getElementById('customCatGroup').style.display =
+    document.getElementById('expCat').value === 'أخرى' ? '' : 'none';
+}
+
+async function saveExpense() {
+  const id  = document.getElementById('editExpId').value;
+  const cat = document.getElementById('expCat').value === 'أخرى'
+    ? document.getElementById('expCustomCat').value.trim()
+    : document.getElementById('expCat').value;
+  const amt  = parseFloat(document.getElementById('expAmt').value);
+  const date = document.getElementById('expDate').value || todayIso();
+  const note = document.getElementById('expNote').value.trim();
+
+  if(!cat)            { toast('الفئة مطلوبة','warning'); return; }
+  if(!amt || amt<=0)  { toast('المبلغ يجب أن يكون أكبر من صفر','warning'); return; }
+
+  const data = { category:cat, amount:amt, date, note, createdAt:new Date().toISOString() };
+  if(id) { data.id=parseInt(id); await dbPut('expenses',data); toast('تم تعديل المصروف ✅','success'); }
+  else   { await dbAdd('expenses',data); toast('تم حفظ المصروف ✅','success'); }
+
+  clearExpForm();
+  await loadExpenses();
+  await updateStats();
+}
+
+function clearExpForm() {
+  document.getElementById('editExpId').value = '';
+  document.getElementById('expCat').value    = 'كهرباء';
+  document.getElementById('expAmt').value    = '';
+  document.getElementById('expNote').value   = '';
+  document.getElementById('expDate').value   = todayIso();
+  document.getElementById('customCatGroup').style.display = 'none';
+  document.getElementById('expSaveLbl').textContent = 'حفظ المصروف';
+}
+
+async function loadExpenses() {
+  allExpenses = await dbGetAll('expenses');
+  const dateFilter = document.getElementById('filterExpDate')?.value || '';
+  const catFilter  = document.getElementById('filterExpCat')?.value  || '';
+
+  let list = [...allExpenses].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(dateFilter) list = list.filter(e=>e.date && e.date.startsWith(dateFilter));
+  if(catFilter)  list = list.filter(e=>e.category===catFilter);
+
+  const wrap = document.getElementById('expListWrap');
+  if(!list.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">💸</div><p>لا توجد مصاريف بهذه المعايير</p></div>';
+    return;
+  }
+  wrap.innerHTML = list.map(e=>{
+    const color = catColor(e.category);
+    return `<div class="exp-list-item">
+      <div class="exp-cat-icon" style="background:${color}22;border:1px solid ${color}44;">${catIcon(e.category)}</div>
+      <div class="exp-info">
+        <div class="exp-cat">${e.category}</div>
+        ${e.note ? `<div class="exp-note">${e.note}</div>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+        <span class="exp-amount">- ${parseFloat(e.amount).toFixed(2)} ${currency}</span>
+        <span class="exp-date">${fmtDate(e.date)}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <button class="btn btn-sm btn-primary" onclick="editExpense(${e.id})" title="تعديل">✏️</button>
+        <button class="btn btn-sm btn-danger"  onclick="deleteExpense(${e.id})" title="حذف">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function editExpense(id) {
+  const e = allExpenses.find(x=>x.id===id);
+  if(!e) return;
+  document.getElementById('editExpId').value  = e.id;
+  document.getElementById('expCat').value     = e.category;
+  document.getElementById('expAmt').value     = e.amount;
+  document.getElementById('expDate').value    = e.date?.slice(0,10) || todayIso();
+  document.getElementById('expNote').value    = e.note || '';
+  document.getElementById('expSaveLbl').textContent = 'تعديل المصروف';
+  // scroll to top of form
+  document.querySelector('#tab-expenses .card')?.scrollIntoView({behavior:'smooth'});
+}
+
+async function deleteExpense(id) {
+  if(!await customConfirmAsync('حذف هذا المصروف نهائياً؟')) return;
+  await dbDelete('expenses', id);
+  toast('تم الحذف','success');
+  await loadExpenses();
+  await updateStats();
+}
+
+/* ══════════════════════════════════════════════
+   قسم العمال
+══════════════════════════════════════════════ */
+async function saveWorker() {
+  const id        = document.getElementById('editWorkerId').value;
+  const firstName = document.getElementById('wFirstName').value.trim();
+  const lastName  = document.getElementById('wLastName').value.trim();
+  const salary    = parseFloat(document.getElementById('wSalary').value);
+  const note      = document.getElementById('wNote').value.trim();
+
+  if(!firstName)       { toast('الاسم مطلوب','warning'); return; }
+  if(!lastName)        { toast('اللقب مطلوب','warning'); return; }
+  if(!salary||salary<0){ toast('الراتب يجب أن يكون أكبر من صفر','warning'); return; }
+
+  const data = { firstName, lastName, salary, note, createdAt:new Date().toISOString() };
+  if(id) {
+    data.id = parseInt(id);
+    await dbPut('workers', data);
+    toast('تم تعديل معلومات العامل ✅','success');
+  } else {
+    await dbAdd('workers', data);
+    toast('تمت إضافة العامل ✅','success');
+  }
+  clearWorkerForm();
+  await loadWorkers();
+  await updateStats();
+}
+
+function clearWorkerForm() {
+  document.getElementById('editWorkerId').value    = '';
+  document.getElementById('wFirstName').value      = '';
+  document.getElementById('wLastName').value       = '';
+  document.getElementById('wSalary').value         = '';
+  document.getElementById('wNote').value           = '';
+  document.getElementById('workerFormTitle').textContent = '➕ إضافة عامل';
+  document.getElementById('workerSaveLbl').textContent   = 'إضافة العامل';
+}
+
+async function loadWorkers() {
+  allWorkers = await dbGetAll('workers');
+  const grid  = document.getElementById('workersGrid');
+  const empty = document.getElementById('workersEmpty');
+
+  if(!allWorkers.length) {
+    grid.innerHTML  = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const cards = await Promise.all(allWorkers.map(async w => {
+    const payments = await dbGetByIndex('workerPayments','workerId', w.id);
+    // مجموع مدفوعات الشهر الحالي
+    const monthStr  = todayIso().slice(0,7);
+    const paidMonth = payments.filter(p=>p.date&&p.date.startsWith(monthStr)).reduce((s,p)=>s+p.amount,0);
+    const paidAll   = payments.reduce((s,p)=>s+p.amount,0);
+    const remaining = Math.max(0, w.salary - paidMonth);
+    const pct       = w.salary > 0 ? Math.min(100, Math.round(paidMonth / w.salary * 100)) : 0;
+    const fillColor = pct>=100?'#10b981':pct>=50?'#f59e0b':'#ef4444';
+
+    return `<div class="worker-card">
+      <div class="worker-name">
+        <i class="fa-solid fa-user-hard-hat" style="color:var(--primary-light);margin-left:6px;"></i>
+        ${w.firstName} ${w.lastName}
+        ${w.note ? `<span style="font-size:0.72rem;color:var(--text-secondary);font-weight:600;margin-right:6px;">(${w.note})</span>` : ''}
+      </div>
+      <div class="worker-row">
+        <span class="wlbl">الراتب الشهري</span>
+        <span class="wval" style="color:var(--primary-light);">${parseFloat(w.salary).toFixed(2)} ${currency}</span>
+      </div>
+      <div class="worker-row">
+        <span class="wlbl">المدفوع هذا الشهر</span>
+        <span class="wval" style="color:#10b981;">${parseFloat(paidMonth).toFixed(2)} ${currency}</span>
+      </div>
+      <div class="worker-row">
+        <span class="wlbl">المتبقي</span>
+        <span class="wval" style="color:${remaining>0?'#ef4444':'#10b981'};">${parseFloat(remaining).toFixed(2)} ${currency}</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:${pct}%;background:${fillColor};"></div>
+      </div>
+      <div style="text-align:center;font-size:0.72rem;color:var(--text-secondary);margin-bottom:8px;">${pct}% مدفوع</div>
+      <div class="worker-actions">
+        ${remaining>0
+          ? `<button class="btn btn-sm btn-success" onclick="openPayWorker(${w.id},'partial')"><i class="fa-solid fa-coins"></i> دفع</button>
+             <button class="btn btn-sm btn-primary" onclick="openPayWorker(${w.id},'full')"><i class="fa-solid fa-check-double"></i> تسديد كامل</button>`
+          : `<span style="color:#10b981;font-size:0.78rem;font-weight:700;padding:4px 0;"><i class="fa-solid fa-check-circle"></i> الراتب مسدّد</span>`
+        }
+        <button class="btn btn-sm btn-secondary" onclick="showWorkerHistory(${w.id})" title="السجل">📋</button>
+        <button class="btn btn-sm btn-warning"   onclick="editWorker(${w.id})"         title="تعديل">✏️</button>
+        <button class="btn btn-sm btn-danger"    onclick="deleteWorker(${w.id})"       title="حذف">🗑️</button>
+      </div>
+    </div>`;
+  }));
+  grid.innerHTML = cards.join('');
+}
+
+async function editWorker(id) {
+  const w = allWorkers.find(x=>x.id===id);
+  if(!w) return;
+  document.getElementById('editWorkerId').value    = w.id;
+  document.getElementById('wFirstName').value      = w.firstName;
+  document.getElementById('wLastName').value       = w.lastName;
+  document.getElementById('wSalary').value         = w.salary;
+  document.getElementById('wNote').value           = w.note || '';
+  document.getElementById('workerFormTitle').textContent = '✏️ تعديل بيانات العامل';
+  document.getElementById('workerSaveLbl').textContent   = 'حفظ التعديلات';
+  document.querySelector('#tab-workers .card')?.scrollIntoView({behavior:'smooth'});
+}
+
+async function deleteWorker(id) {
+  if(!await customConfirmAsync('حذف هذا العامل وكل سجل مدفوعاته؟')) return;
+  await dbDelete('workers', id);
+  const payments = await dbGetByIndex('workerPayments','workerId', id);
+  for(const p of payments) await dbDelete('workerPayments', p.id);
+  toast('تم حذف العامل','success');
+  await loadWorkers();
+  await updateStats();
+}
+
+/* ── Modal دفع الراتب ── */
+async function openPayWorker(workerId, mode) {
+  _payWorkerId = workerId;
+  const w = allWorkers.find(x=>x.id===workerId);
+  if(!w) return;
+
+  const payments = await dbGetByIndex('workerPayments','workerId', workerId);
+  const monthStr  = todayIso().slice(0,7);
+  const paidMonth = payments.filter(p=>p.date&&p.date.startsWith(monthStr)).reduce((s,p)=>s+p.amount,0);
+  const remaining = Math.max(0, w.salary - paidMonth);
+
+  document.getElementById('payWorkerTitle').textContent = `💳 دفع راتب — ${w.firstName} ${w.lastName}`;
+  document.getElementById('payWorkerInfo').innerHTML =
+    `<div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+       <span style="color:var(--text-secondary);">الراتب الشهري</span>
+       <b style="color:var(--primary-light);">${parseFloat(w.salary).toFixed(2)} ${currency}</b>
+     </div>
+     <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+       <span style="color:var(--text-secondary);">المدفوع هذا الشهر</span>
+       <b style="color:#10b981;">${parseFloat(paidMonth).toFixed(2)} ${currency}</b>
+     </div>
+     <div style="display:flex;justify-content:space-between;">
+       <span style="color:var(--text-secondary);">المتبقي</span>
+       <b style="color:#ef4444;">${parseFloat(remaining).toFixed(2)} ${currency}</b>
+     </div>`;
+
+  document.getElementById('payAmt').value  = mode==='full' ? remaining.toFixed(2) : '';
+  document.getElementById('payNote').value = '';
+  document.getElementById('payPreview').style.display = 'none';
+  openModal('payWorkerModal');
+  if(mode==='partial') setTimeout(()=>document.getElementById('payAmt')?.focus(), 200);
+}
+
+function updatePayPreview() {
+  const w = allWorkers.find(x=>x.id===_payWorkerId);
+  if(!w) return;
+  const amt = parseFloat(document.getElementById('payAmt').value) || 0;
+  const prev = document.getElementById('payPreview');
+  if(amt<=0) { prev.style.display='none'; return; }
+  prev.style.display = '';
+  prev.style.background = 'rgba(16,185,129,0.1)';
+  prev.style.color = '#10b981';
+  prev.innerHTML = `<i class="fa-solid fa-coins"></i> سيُسجَّل دفع <b>${amt.toFixed(2)} ${currency}</b>`;
+}
+
+async function confirmPayWorker() {
+  const w   = allWorkers.find(x=>x.id===_payWorkerId);
+  if(!w) return;
+  const amt  = parseFloat(document.getElementById('payAmt').value);
+  const note = document.getElementById('payNote').value.trim();
+  if(!amt || amt<=0) { toast('أدخل مبلغاً صحيحاً','warning'); return; }
+
+  // حفظ الدفعة
+  await dbAdd('workerPayments', {
+    workerId: w.id,
+    workerName: `${w.firstName} ${w.lastName}`,
+    amount: amt,
+    date: todayIso(),
+    note,
+    createdAt: new Date().toISOString()
+  });
+
+  // تسجيل كمصروف تلقائياً في expenses
+  await dbAdd('expenses', {
+    category: 'عمال',
+    amount: amt,
+    date: todayIso(),
+    note: `راتب ${w.firstName} ${w.lastName}${note?` — ${note}`:''}`,
+    createdAt: new Date().toISOString()
+  });
+
+  closeModal('payWorkerModal');
+  toast(`✅ تم تسجيل دفع ${amt.toFixed(2)} ${currency} لـ ${w.firstName} ${w.lastName}`, 'success', 3500);
+  await loadWorkers();
+  await loadExpenses();
+  await updateStats();
+}
+
+/* ── سجل مدفوعات العامل ── */
+async function showWorkerHistory(workerId) {
+  const w = allWorkers.find(x=>x.id===workerId);
+  if(!w) return;
+  const payments = (await dbGetByIndex('workerPayments','workerId', workerId))
+    .sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const total = payments.reduce((s,p)=>s+p.amount,0);
+
+  document.getElementById('workerHistoryTitle').textContent = `📋 ${w.firstName} ${w.lastName} — سجل المدفوعات`;
+
+  if(!payments.length) {
+    document.getElementById('workerHistoryBody').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">💳</div><p>لا توجد مدفوعات مسجلة</p></div>';
+  } else {
+    document.getElementById('workerHistoryBody').innerHTML = `
+      <div style="background:rgba(16,185,129,0.1);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;">
+        <span style="color:var(--text-secondary);">إجمالي المدفوع</span>
+        <b style="color:#10b981;">${total.toFixed(2)} ${currency}</b>
+      </div>
+      <table class="data-table" style="font-size:0.84rem;">
+        <thead><tr><th>التاريخ</th><th>المبلغ</th><th>ملاحظة</th></tr></thead>
+        <tbody>
+          ${payments.map(p=>`<tr>
+            <td>${fmtDate(p.date)}</td>
+            <td><b style="color:#10b981;">${parseFloat(p.amount).toFixed(2)} ${currency}</b></td>
+            <td style="color:var(--text-secondary);">${p.note||'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+  openModal('workerHistoryModal');
+}
+
+/* ── إحصائيات ── */
+async function updateStats() {
+  const allExp  = await dbGetAll('expenses');
+  const today   = todayIso();
+  const month   = today.slice(0,7);
+  const expToday = allExp.filter(e=>e.date&&e.date.startsWith(today)).reduce((s,e)=>s+e.amount,0);
+  const expMonth = allExp.filter(e=>e.date&&e.date.startsWith(month)).reduce((s,e)=>s+e.amount,0);
+  const salMonth = allExp.filter(e=>e.date&&e.date.startsWith(month)&&e.category==='عمال').reduce((s,e)=>s+e.amount,0);
+
+  document.getElementById('statToday').textContent    = expToday.toFixed(2) + ' ' + currency;
+  document.getElementById('statMonth').textContent    = expMonth.toFixed(2) + ' ' + currency;
+  document.getElementById('statCount').textContent    = allExp.filter(e=>e.date&&e.date.startsWith(month)).length;
+  document.getElementById('statSalaries').textContent = salMonth.toFixed(2) + ' ' + currency;
+}
+
+function doLogout() {
+  customConfirm('هل تريد تسجيل الخروج؟', () => { clearSession(); window.location.href='index.html'; });
+}
+
+init();
+</script>
+</body>
+</html>
