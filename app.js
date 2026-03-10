@@ -594,13 +594,37 @@ table.items tbody tr + tr { border-top: 1px dashed #999; }
   H += '<br/><br/>';
   H += '</body></html>';
 
-  _thermalPrint(H);
+  await _smartPrint(H, 'printerInvoice', pSize || '80mm');
 }
 
 
 // ══════════════════════════════════════════════════════════════
-// طباعة حرارية موثوقة — نافذة حقيقية أكثر موثوقية من iframe
+// طباعة ذكية — تستخدم السيرفر للطابعة المحددة، أو نافذة المتصفح كـ fallback
 // ══════════════════════════════════════════════════════════════
+async function _smartPrint(html, printerKey, labelSize) {
+  // هل السيرفر متاح؟
+  try {
+    const syncEnabled = await getSetting('syncEnabled');
+    const serverIP    = await getSetting('syncServerIP')   || '192.168.1.1';
+    const serverPort  = await getSetting('syncServerPort') || '3000';
+    if (syncEnabled === '1') {
+      const printerName = await getSetting(printerKey) || '';
+      const resp = await fetch(`http://${serverIP}:${serverPort}/api/print`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html, printerName, labelSize }),
+        signal: AbortSignal.timeout(8000)
+      });
+      if (resp.ok) {
+        const r = await resp.json();
+        if (r.status === 'ok') { toast(`🖨️ جاري الطباعة على: ${r.printer}`, 'success'); return; }
+      }
+    }
+  } catch(e) { /* السيرفر غير متاح — نستخدم المتصفح */ }
+  // Fallback: نافذة المتصفح
+  _thermalPrint(html);
+}
+
 function _thermalPrint(html) {
   const w = window.open('', '_blank', 'width=420,height=600,scrollbars=no,toolbar=no,menubar=no,location=no,status=no');
   if (!w) { _silentPrint(html); return; }
@@ -617,7 +641,6 @@ function _thermalPrint(html) {
       } catch(e) { try { w.print(); } catch(e2) {} }
     }, 350);
   };
-  // fallback إذا لم يُطلق onload
   setTimeout(function() {
     if (w && !w.closed) { try { w.focus(); w.print(); } catch(e) {} }
   }, 1800);
@@ -653,9 +676,27 @@ async function printBarcodeLabel(product) {
     return`<div style="display:flex;align-items:flex-end;justify-content:center;overflow:hidden;max-width:${bodyW}mm;">${b}</div>`;
   }
   const bars=bcType==='QR'?`<div style="font-size:${barcodeFontSize}px;font-family:monospace;border:2px solid #000;padding:2px;display:inline-block;">[QR:${bv}]</div>`:buildBars(bv);
-  const labelHTML=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>@page{margin:1mm;size:${labelSize};}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'${bcFont||'Cairo'}',Arial,sans-serif;background:#fff;color:#000;width:${bodyW}mm;text-align:center;padding:1px 1mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;}.sn{font-size:${storeFontSize}px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:${bodyW}mm;}.pn{font-size:${baseFontSize}px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:${bodyW}mm;}.bc{font-family:'Courier New',monospace;font-size:${barcodeFontSize}px;letter-spacing:1px;font-weight:800;}.pr{font-size:${priceFontSize}px;font-weight:900;margin-top:1px;}@media print{*{color:#000!important;}}</style></head><body>${showStore==='1'&&sName?`<div class="sn">${sName}</div>`:''}${showName!=='0'?`<div class="pn">${product.name}${product.size?' — '+product.size:''}</div>`:''}${bars}<div class="bc">${bv}</div>${showPrice!=='0'?`<div class="pr">${parseFloat(product.sellPrice||0).toFixed(2)} ${cur||'DA'}</div>`:''}</body></html>`;
-  // استخدام _thermalPrint لضمان فتح نافذة الطباعة الفعلية مع اختيار الطابعة
-  _thermalPrint(labelHTML);
+
+  // طابعات الباركود تغذي الورق عمودياً: pageW = الارتفاع الفعلي، pageH = العرض الفعلي
+  // لذلك نعكس الأبعاد في @page: size = pageH × pageW (portrait)
+  const printW = parseInt(pageH); // عرض الطباعة = الارتفاع المُدخل
+  const printH = parseInt(pageW); // ارتفاع الطباعة = العرض المُدخل
+  const printBodyW = printW - 4;
+
+  const labelHTML=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+@page{margin:0;size:${printW}mm ${printH}mm;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'${bcFont||'Cairo'}',Arial,sans-serif;background:#fff;color:#000;
+     width:${printBodyW}mm;text-align:center;padding:1mm;
+     -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.sn{font-size:${storeFontSize}px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:${printBodyW}mm;}
+.pn{font-size:${baseFontSize}px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:${printBodyW}mm;}
+.bc{font-family:'Courier New',monospace;font-size:${barcodeFontSize}px;letter-spacing:1px;font-weight:800;}
+.pr{font-size:${priceFontSize}px;font-weight:900;margin-top:1px;}
+@media print{*{color:#000!important;}}
+</style></head><body>${showStore==='1'&&sName?`<div class="sn">${sName}</div>`:''}${showName!=='0'?`<div class="pn">${product.name}${product.size?' — '+product.size:''}</div>`:''}${bars}<div class="bc">${bv}</div>${showPrice!=='0'?`<div class="pr">${parseFloat(product.sellPrice||0).toFixed(2)} ${cur||'DA'}</div>`:''}</body></html>`;
+  // طباعة ذكية: عبر السيرفر إذا متاح، وإلا نافذة المتصفح
+  await _smartPrint(labelHTML, 'printerBarcode', rawSize || '58x38');
 }
 
 
