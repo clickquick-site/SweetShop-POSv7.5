@@ -59,27 +59,16 @@
       <button class="tab-btn" onclick="switchTab('import')"><span data-i18n="invTabImport">استيراد / تصدير</span></button>
     </div>
 
-    <!-- TAB: All Products -->\n    <div class="tab-content active" id="tab-all">
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
-        <div class="search-bar" style="flex:1;min-width:200px;margin-bottom:0;">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="productSearch" placeholder="ابحث عن اسم المنتج أو الباركود..." data-i18n-ph="invSearch" oninput="filterProducts()"/>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="toggleSelectMode()" id="selectModeBtn" title="تحديد منتجات لطباعة الباركود">
-          ☑️ تحديد للطباعة
-        </button>
-        <button class="btn btn-primary btn-sm" id="printSelectedBtn" onclick="printSelectedLabels()" style="display:none;">
-          🖨️ طباعة المحدد (<span id="selectedCount">0</span>)
-        </button>
-        <button class="btn btn-ghost btn-sm" id="cancelSelectBtn" onclick="cancelSelectMode()" style="display:none;">
-          ✕ إلغاء
-        </button>
+    <!-- TAB: All Products -->
+    <div class="tab-content active" id="tab-all">
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="productSearch" placeholder="ابحث عن اسم المنتج أو الباركود..." data-i18n-ph="invSearch" oninput="filterProducts()"/>
       </div>
       <div class="card" style="padding:0;overflow:hidden;">
         <table class="data-table" id="productsTable">
           <thead>
             <tr>
-              <th id="thSelect" style="display:none;width:36px;"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" style="cursor:pointer;width:16px;height:16px;"/></th>
               <th data-i18n="invColProduct">المنتج</th><th data-i18n="invColFamily">العائلة</th><th data-i18n="invColUnit">الوحدة</th>
               <th data-i18n="invColBuyPrice">سعر الشراء</th><th data-i18n="invColPrice">سعر البيع</th><th data-i18n="invColQty">المخزون</th>
               <th data-i18n="invColExpiry">الصلاحية</th><th data-i18n="invColAlert">تنبيه</th><th data-i18n="invColActions">إجراءات</th>
@@ -412,9 +401,6 @@ function renderProducts(products) {
       if (diff <= 0) alertBadge = `<span class="badge badge-danger">❌ منتهي</span>`;
     }
     return `<tr>
-      <td id="tdSelect_${p.id}" style="display:none;text-align:center;">
-        <input type="checkbox" class="prod-select-cb" data-id="${p.id}" onchange="updateSelectCount()" style="cursor:pointer;width:16px;height:16px;"/>
-      </td>
       <td><b>${p.name}</b><br><small class="text-muted">${p.barcode || ''} ${p.size || ''}</small></td>
       <td>${family ? family.name : '—'}</td>
       <td>${p.unit || '—'}</td>
@@ -856,60 +842,6 @@ async function confirmModalAdjust() {
 }
 
 function doLogout() { customConfirm('هل تريد تسجيل الخروج؟', () => { clearSession(); window.location.href = 'index.html'; }); }
-/* ══════════════════════════════════════════════
-   طباعة باركود متعددة — وضع التحديد
-══════════════════════════════════════════════ */
-let _selectMode = false;
-
-function toggleSelectMode() {
-  _selectMode = true;
-  document.getElementById('thSelect').style.display = '';
-  document.querySelectorAll('[id^="tdSelect_"]').forEach(td => td.style.display = '');
-  document.getElementById('selectModeBtn').style.display = 'none';
-  document.getElementById('printSelectedBtn').style.display = '';
-  document.getElementById('cancelSelectBtn').style.display = '';
-  updateSelectCount();
-}
-
-function cancelSelectMode() {
-  _selectMode = false;
-  document.getElementById('thSelect').style.display = 'none';
-  document.querySelectorAll('[id^="tdSelect_"]').forEach(td => td.style.display = 'none');
-  document.querySelectorAll('.prod-select-cb').forEach(cb => cb.checked = false);
-  document.getElementById('selectAll').checked = false;
-  document.getElementById('selectModeBtn').style.display = '';
-  document.getElementById('printSelectedBtn').style.display = 'none';
-  document.getElementById('cancelSelectBtn').style.display = 'none';
-  document.getElementById('selectedCount').textContent = '0';
-}
-
-function toggleSelectAll(masterCb) {
-  document.querySelectorAll('.prod-select-cb').forEach(cb => cb.checked = masterCb.checked);
-  updateSelectCount();
-}
-
-function updateSelectCount() {
-  const count = document.querySelectorAll('.prod-select-cb:checked').length;
-  document.getElementById('selectedCount').textContent = count;
-}
-
-async function printSelectedLabels() {
-  const checked = [...document.querySelectorAll('.prod-select-cb:checked')];
-  if (!checked.length) { toast('⚠️ لم تحدد أي منتج', 'warning'); return; }
-
-  const ids = checked.map(cb => parseInt(cb.dataset.id));
-  const products = allProducts.filter(p => ids.includes(p.id));
-
-  toast(`🖨️ جاري تحضير طباعة ${products.length} ملصق...`, 'info');
-
-  // طباعة كل ملصق بفاصل زمني لتجنب تعارض النوافذ
-  for (let i = 0; i < products.length; i++) {
-    await new Promise(r => setTimeout(r, i === 0 ? 0 : 600));
-    await printBarcodeLabel(products[i]);
-  }
-  cancelSelectMode();
-}
-
 init();
 </script>
 </body>
