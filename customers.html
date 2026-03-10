@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+  <link rel="shortcut icon" href="favicon.svg"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>POS DZ - إدارة الزبائن</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <style>
+    .customer-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px; margin-bottom: 10px;
+      transition: var(--transition);
+    }
+    .customer-card:hover { border-color: var(--primary); box-shadow: 0 0 16px var(--glow); }
+    .customer-card.has-debt { border-right: 4px solid var(--danger); }
+    .customer-card.no-debt  { border-right: 4px solid var(--success); }
+    .cust-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .cust-name { font-size:1.05rem; font-weight:800; color:var(--text-primary); }
+    .cust-phone { font-size:0.82rem; color:var(--text-secondary); }
+    .cust-debt-amount { font-size:1.2rem; font-weight:900; color:var(--danger); }
+    .cust-debt-none { font-size:0.85rem; color:var(--success); font-weight:700; }
+    .cust-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+    .cust-actions .btn { font-size:0.8rem; padding:6px 12px; }
+    .debt-detail-row {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:8px 0; border-bottom:1px solid var(--border); font-size:0.88rem;
+    }
+    .debt-detail-row:last-child { border-bottom:none; }
+    .debt-detail-date { font-size:0.75rem; color:var(--text-secondary); }
+    .partial-modal-info { background:var(--bg-dark); border-radius:var(--radius-sm); padding:12px 16px; margin-bottom:14px; }
+    .stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
+  </style>
+</head>
+<body>
+<div class="bg-animated"></div>
+<div class="page-wrapper">
+    <header class="app-header">
+    <button class="menu-btn" id="menuBtn" title="القائمة الرئيسية"><i class="fa-solid fa-bars"></i></button>
+    <button id="_notifBell" class="notif-bell" title="الإشعارات" onclick="_toggleNotifPanel&&_toggleNotifPanel()">
+      <i class="fa-solid fa-bell"></i>
+      <span id="_notifBadge" class="notif-badge" style="display:none;"></span>
+    </button>
+    <span class="store-name" id="headerStoreName">اسم المتجر</span>
+    
+    <div class="app-brand">
+      <span class="brand-title">POS DZ</span>
+      <span class="brand-clock" id="clockDisplay"></span>
+    </div>
+  </header>
+  <div class="main-content">
+    <div class="section-header">
+      <a href="sale.html" class="back-btn">← <span data-i18n="btnBack">رجوع</span></a>
+      <h2 class="page-title"><span data-i18n="titleCustomers">إدارة الزبائن</span></h2>
+      <button class="btn btn-primary" onclick="openModal('addCustomerModal')"><span data-i18n="custAdd">➕ إضافة زبون</span></button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row" id="customerStats"></div>
+
+    <!-- Search -->
+    <div class="search-bar" style="margin-bottom:14px;">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="customerSearch" placeholder="ابحث بالاسم أو الهاتف..." data-i18n-ph="custSearch" oninput="filterCustomers()"/>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="tabs-bar" style="margin-bottom:14px;">
+      <button class="tab-btn active" onclick="setFilter('all')" data-i18n="custFilterAll">الكل</button>
+      <button class="tab-btn" onclick="setFilter('debt')" data-i18n="custFilterDebt">💳 مديونون</button>
+      <button class="tab-btn" onclick="setFilter('clear')" data-i18n="custFilterClear">✅ مسددون</button>
+    </div>
+
+    <!-- Customer Cards -->
+    <div id="customersContainer"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Customer Modal -->
+<div class="modal-overlay" id="addCustomerModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title" id="customerModalTitle">➕ إضافة زبون جديد</span>
+      <button class="modal-close" onclick="closeModal('addCustomerModal')">✕</button>
+    </div>
+    <input type="hidden" id="editCustomerId"/>
+    <div class="input-group">
+      <label class="input-label" data-i18n="custName">👤 الاسم *</label>
+      <input class="input-field" type="text" id="customerName" placeholder="اسم الزبون"/>
+    </div>
+    <div class="input-group">
+      <label class="input-label" data-i18n="custPhone">📞 الهاتف *</label>
+      <input class="input-field" type="tel" id="customerPhone" placeholder="رقم الهاتف"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-success" onclick="saveCustomer()">💾 حفظ</button>
+      <button class="btn btn-secondary" onclick="closeModal('addCustomerModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Debt Details Modal -->
+<div class="modal-overlay" id="debtDetailModal">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-header">
+      <span class="modal-title" id="debtDetailTitle">💳 ديون الزبون</span>
+      <button class="modal-close" onclick="closeModal('debtDetailModal')">✕</button>
+    </div>
+    <div id="debtDetailContent"></div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn btn-primary btn-sm" onclick="viewPaymentHistory(activeDebtCustomerId)">📜 سجل الدفعات</button>
+      <button class="btn btn-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;" onclick="openInterestModal(activeDebtCustomerId)">💹 إضافة فائدة</button>
+      <button class="btn btn-secondary" onclick="closeModal('debtDetailModal')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- Partial Payment Modal -->
+<div class="modal-overlay" id="partialPayModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title">💰 تسديد جزئي</span>
+      <button class="modal-close" onclick="closeModal('partialPayModal')">✕</button>
+    </div>
+    <div class="partial-modal-info" id="partialPayInfo"></div>
+    <div class="input-group">
+      <label class="input-label">💵 المبلغ المدفوع</label>
+      <input class="input-field" type="number" id="partialPayAmount" placeholder="0.00" style="font-size:1.2rem;text-align:center;" oninput="updatePartialRemain()"/>
+    </div>
+    <div id="partialRemainDisplay" style="text-align:center;font-weight:700;margin:8px 0;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-success" onclick="confirmPartialPay()">✅ تأكيد الدفع</button>
+      <button class="btn btn-secondary" onclick="closeModal('partialPayModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Modal: إضافة فائدة على الديون ══ -->
+<div class="modal-overlay" id="interestModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title">💹 إضافة فائدة على الديون</span>
+      <button class="modal-close" onclick="closeModal('interestModal')">✕</button>
+    </div>
+    <div id="interestCustomerInfo" style="background:var(--bg-dark);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;font-size:0.9rem;"></div>
+
+    <div class="input-group" style="margin-bottom:12px;">
+      <label class="input-label">🧮 طريقة حساب الفائدة</label>
+      <select class="select-field" id="interestType" onchange="toggleInterestFields()">
+        <option value="daily">📆 يومية — المبلغ × النسبة × عدد الأيام ÷ 365</option>
+        <option value="monthly">🗓️ شهرية — المبلغ × النسبة × عدد الأشهر</option>
+        <option value="fixed">🔒 مبلغ ثابت</option>
+      </select>
+    </div>
+
+    <div class="input-group" style="margin-bottom:12px;" id="interestRateGroup">
+      <label class="input-label">النسبة % (مثال: 2 = 2%)</label>
+      <input class="input-field" type="number" id="interestRate" min="0" max="100" step="0.5"
+        placeholder="2" style="text-align:center;font-size:1.1rem;font-weight:700;" oninput="recalcInterest()"/>
+    </div>
+
+    <div class="input-group" style="margin-bottom:12px;" id="interestFixedGroup" style="display:none;">
+      <label class="input-label">💵 المبلغ الثابت للفائدة</label>
+      <input class="input-field" type="number" id="interestFixedAmount" min="0" step="0.01"
+        placeholder="0.00" style="text-align:center;font-size:1.1rem;" oninput="recalcInterest()"/>
+    </div>
+
+    <!-- معاينة النتيجة -->
+    <div id="interestPreview" style="display:none;border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:14px;"></div>
+
+    <div class="input-group" style="margin-bottom:14px;">
+      <label class="input-label">📝 ملاحظة (اختياري)</label>
+      <input class="input-field" type="text" id="interestNote" placeholder="فائدة شهر مارس..."/>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-warning" style="flex:2;font-weight:800;" onclick="applyInterest()">💹 تطبيق الفائدة</button>
+      <button class="btn btn-secondary" onclick="closeModal('interestModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-header-top">
+        <div class="sidebar-brand-text">POS DZ</div>
+        <button class="sidebar-close-btn" id="sidebarCloseBtn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="sidebar-user-box">
+        <div class="sidebar-user-avatar"><span id="sidebarUserInitial">A</span></div>
+        <div class="sidebar-user-info">
+          <span class="sidebar-user-name" id="sidebarUserName">المستخدم</span>
+          <span class="sidebar-user-role" id="sidebarUserRole">مدير</span>
+        </div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="nav-group-label" data-i18n="navGroupSale">المبيعات</span>
+      <a class="nav-item" href="sale.html"><span class="nav-label" data-i18n="navSale">واجهة البيع</span></a>
+      <span class="nav-group-label" data-i18n="navGroupManage">الإدارة</span>
+      <a class="nav-item" href="inventory.html" data-role="admin,manager"><span class="nav-label" data-i18n="navInventory">المخزون</span></a>
+      <a class="nav-item active" href="customers.html"><span class="nav-label" data-i18n="navCustomers">الزبائن</span></a>
+      <a class="nav-item" href="reports.html" data-role="admin,manager"><span class="nav-label" data-i18n="navReports">إدارة الأعمال</span></a>
+      <a class="nav-item" href="suppliers.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSuppliers">الموردون</span></a>
+      <span class="nav-group-label" data-i18n="navGroupSystem">النظام</span>
+      <a class="nav-item" href="users.html" data-role="admin"><span class="nav-label" data-i18n="navUsers">المستخدمون</span></a>
+      <a class="nav-item" href="settings.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSettings">الإعدادات</span></a>
+
+      <div class="nav-item danger" onclick="doLogout()"><span class="nav-label" data-i18n="navLogout">خروج</span></div>
+    </nav>
+    <div class="sidebar-footer"><span id="sidebarVersion">v6.0.0</span><span>POS DZ 2026</span></div>
+  </div>
+<div id="toast-container"></div>
+<script src="app.js"></script>
+<script src="sync.js"></script>
+<script>
+'use strict';
+let allCustomers = [];
+let allDebts = [];
+let allSales = [];
+let currency = 'DA';
+function getCurrency() {
+  return (window._i18n && window._i18n.currencyLabel) || currency || 'DA';
+}
+let currentFilter = 'all';
+let activeDebtId = null;
+let activeDebtCustomerId = null;
+let activeDebtTotal = 0;
+
+async function init() {
+  requireAuth();
+  await initApp();
+  currency = await getSetting('currency') || 'DA';
+  await loadAll();
+  // Enter في حقول الزبون — الاسم → الهاتف → حفظ
+  document.getElementById('customerName')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('customerPhone')?.focus(); }
+  });
+  document.getElementById('customerPhone')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); saveCustomer(); }
+  });
+}
+
+async function loadAll() {
+  allCustomers = await dbGetAll('customers');
+  allDebts     = await dbGetAll('debts');
+  allSales     = await dbGetAll('sales');
+  renderStats();
+  renderCustomers();
+}
+
+function renderStats() {
+  const debtors   = new Set(allDebts.filter(d => !d.isPaid).map(d => d.customerId)).size;
+  const totalDebt = allDebts.filter(d => !d.isPaid).reduce((s, d) => s + d.amount, 0);
+  const cleared   = allCustomers.filter(c => !allDebts.find(d => d.customerId === c.id && !d.isPaid)).length;
+  document.getElementById('customerStats').innerHTML = `
+    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-value">${allCustomers.length}</div><div class="stat-label">إجمالي الزبائن</div></div>
+    <div class="stat-card"><div class="stat-icon">💳</div><div class="stat-value" style="color:var(--danger)">${totalDebt.toFixed(0)}</div><div class="stat-label">إجمالي الديون (${currency})</div></div>
+    <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-value" style="color:var(--success)">${cleared}</div><div class="stat-label">زبائن بدون ديون</div></div>`;
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.tabs-bar .tab-btn').forEach((b,i) => b.classList.toggle('active', ['all','debt','clear'][i] === f));
+  renderCustomers();
+}
+
+function filterCustomers() { renderCustomers(); }
+
+function renderCustomers() {
+  const q = (document.getElementById('customerSearch').value || '').toLowerCase();
+  let list = allCustomers.filter(c =>
+    c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q)));
+
+  if (currentFilter === 'debt')  list = list.filter(c => allDebts.find(d => d.customerId === c.id && !d.isPaid));
+  if (currentFilter === 'clear') list = list.filter(c => !allDebts.find(d => d.customerId === c.id && !d.isPaid));
+
+  if (!list.length) {
+    document.getElementById('customersContainer').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">👥</div><p>لا يوجد زبائن</p></div>';
+    return;
+  }
+
+  document.getElementById('customersContainer').innerHTML = list.map(c => {
+    const debts    = allDebts.filter(d => d.customerId === c.id && !d.isPaid);
+    const totalDebt = debts.reduce((s, d) => s + d.amount, 0);
+    const hasDebt  = totalDebt > 0;
+    const lastDebt = debts.sort((a,b) => new Date(b.date)-new Date(a.date))[0];
+    // إجمالي مشتريات الزبون
+    const custSales   = allSales ? allSales.filter(s => s.customerId === c.id && !s.isCancelled) : [];
+    const totalBought = custSales.reduce((s, x) => s + (x.total || 0), 0);
+    const visitCount  = custSales.length;
+
+    return `<div class="customer-card ${hasDebt ? 'has-debt' : 'no-debt'}">
+      <div class="cust-header">
+        <div>
+          <div class="cust-name">👤 ${c.name}</div>
+          <div class="cust-phone">📞 ${c.phone || '—'}</div>
+          ${lastDebt ? `<div style="font-size:0.75rem;color:var(--warning);margin-top:2px;">📅 تاريخ الدين: ${formatDate(lastDebt.date)}</div>` : ''}
+          ${visitCount > 0 ? `<div style="font-size:0.73rem;color:var(--text-secondary);margin-top:2px;">🛒 ${visitCount} زيارة — إجمالي: <b style="color:var(--primary-light);">${totalBought.toFixed(2)} ${currency}</b></div>` : ''}
+        </div>
+        <div style="text-align:left;">
+          ${hasDebt
+            ? `<div class="cust-debt-amount">${totalDebt.toFixed(2)} ${currency}</div><div style="font-size:0.72rem;color:var(--danger);">دين متبقي</div>`
+            : `<div class="cust-debt-none">✅ لا ديون</div>`}
+        </div>
+      </div>
+      <div class="cust-actions">
+        <button class="btn btn-secondary btn-sm" onclick="viewDebts(${c.id})" title="عرض تفاصيل الديون">📋 الديون</button>
+        ${hasDebt ? `
+        <button class="btn btn-warning btn-sm" onclick="openPartialModal(${c.id},${totalDebt})" title="تسديد جزء">💰 جزئي</button>
+        <button class="btn btn-success btn-sm" onclick="payAllDebts(${c.id},${totalDebt})" title="تسديد الكل">✅ تسديد الكل</button>
+        <button class="btn btn-primary btn-sm" onclick="printDebtInvoice(${c.id})" title="طباعة فاتورة الدين">🖨️ فاتورة دين</button>
+        ` : ''}
+        <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);" onclick="editCustomer(${c.id})" title="تعديل">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${c.id})" title="حذف">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// View all debts for a customer
+async function viewDebts(customerId) {
+  const c = allCustomers.find(x => x.id === customerId);
+  const debts = allDebts.filter(d => d.customerId === customerId);
+  const unpaid = debts.filter(d => !d.isPaid);
+  const paid   = debts.filter(d =>  d.isPaid);
+
+  document.getElementById('debtDetailTitle').textContent = `💳 ديون: ${c ? c.name : ''}`;
+
+  let html = '';
+  if (unpaid.length) {
+    html += `<h5 style="color:var(--danger);margin:0 0 10px;">📋 ديون قائمة (${unpaid.length})</h5>`;
+    const sales = await Promise.all(unpaid.map(d => dbGet('sales', d.saleId)));
+    html += unpaid.map((d, i) => {
+      const s = sales[i];
+      const daysAgo = Math.floor((Date.now() - new Date(d.date)) / 86400000);
+      const daysColor = daysAgo >= 30 ? 'var(--danger)' : daysAgo >= 14 ? 'var(--warning)' : 'var(--text-secondary)';
+      const waText = encodeURIComponent(
+        `السلام عليكم ${c ? c.name : ''}،\nتذكير بدين قائم بقيمة ${d.amount.toFixed(2)} ${currency} منذ ${daysAgo} يوم.\nشكراً.`
+      );
+      const waLink = c?.phone ? `https://wa.me/${c.phone.replace(/\D/g,'')}?text=${waText}` : '';
+      return `<div class="debt-detail-row">
+        <div>
+          <div style="font-weight:700;">فاتورة: ${s ? s.invoiceNumber : '—'}</div>
+          <div class="debt-detail-date">📅 ${formatDate(d.date)}</div>
+          <div style="font-size:0.78rem;font-weight:700;color:${daysColor};">⏱️ منذ ${daysAgo} يوم</div>
+          ${d.originalAmount && d.originalAmount !== d.amount
+            ? `<div class="debt-detail-date" style="color:var(--warning);">الأصلي: ${d.originalAmount.toFixed(2)} | مسدد: ${(d.originalAmount - d.amount).toFixed(2)}</div>` : ''}
+        </div>
+        <div style="text-align:left;">
+          <div style="color:var(--danger);font-weight:900;">${d.amount.toFixed(2)} ${currency}</div>
+          <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">
+            <button class="btn btn-warning btn-sm" onclick="openPartialModal(${customerId},${d.amount},${d.id})" style="font-size:0.75rem;padding:3px 7px;">💰 جزئي</button>
+            <button class="btn btn-success btn-sm" onclick="payDebt(${d.id},${d.amount},${customerId})" style="font-size:0.75rem;padding:3px 7px;">✅ كلي</button>
+            ${s ? `<button class="btn btn-secondary btn-sm" onclick="printOneDebt(${d.id})" style="font-size:0.75rem;padding:3px 7px;">🖨️</button>` : ''}
+            ${waLink ? `<a href="${waLink}" target="_blank" class="btn btn-sm" style="font-size:0.75rem;padding:3px 7px;background:#25D366;color:#fff;border-radius:4px;text-decoration:none;">💬 واتساب</a>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  if (paid.length) {
+    html += `<h5 style="color:var(--success);margin:14px 0 10px;">✅ ديون مسددة (${paid.length})</h5>`;
+    html += paid.slice(-5).reverse().map(d =>
+      `<div class="debt-detail-row" style="opacity:0.6;">
+        <div>
+          <div style="font-size:0.82rem;"><s>${(d.originalAmount||d.amount).toFixed(2)} ${currency}</s></div>
+          <div class="debt-detail-date">📅 سُدِّد: ${formatDate(d.paidDate || d.date)}</div>
+        </div>
+        <div><span class="badge badge-success">✅ مسدد</span></div>
+      </div>`).join('');
+  }
+  if (!debts.length) html = '<p class="text-muted" style="text-align:center;padding:20px;">لا توجد ديون</p>';
+  document.getElementById('debtDetailContent').innerHTML = html;
+  openModal('debtDetailModal');
+}
+
+// Partial payment modal
+let _partialSingleDebtId = null;
+function openPartialModal(customerId, totalAmount, singleDebtId = null) {
+  activeDebtCustomerId = customerId;
+  activeDebtTotal = totalAmount;
+  _partialSingleDebtId = singleDebtId;
+  const c = allCustomers.find(x => x.id === customerId);
+  document.getElementById('partialPayInfo').innerHTML = `
+    <div style="font-weight:700;color:var(--primary-light);font-size:1rem;margin-bottom:4px;">👤 ${c ? c.name : ''}</div>
+    <div>المبلغ المتبقي: <b style="color:var(--danger);font-size:1.1rem;">${totalAmount.toFixed(2)} ${currency}</b></div>`;
+  document.getElementById('partialPayAmount').value = '';
+  document.getElementById('partialRemainDisplay').textContent = '';
+  closeModal('debtDetailModal');
+  openModal('partialPayModal');
+}
+
+function updatePartialRemain() {
+  const paid   = parseFloat(document.getElementById('partialPayAmount').value) || 0;
+  const remain = activeDebtTotal - paid;
+  const el     = document.getElementById('partialRemainDisplay');
+  if (paid > 0) {
+    if (paid >= activeDebtTotal) { el.textContent = '✅ يكفي للتسديد الكامل'; el.style.color = 'var(--success)'; }
+    else { el.textContent = `المتبقي بعد الدفع: ${remain.toFixed(2)} ${currency}`; el.style.color = 'var(--warning)'; }
+  } else el.textContent = '';
+}
+
+async function confirmPartialPay() {
+  const paid = parseFloat(document.getElementById('partialPayAmount').value) || 0;
+  if (!paid || paid <= 0) { toast('⚠️ أدخل مبلغاً صحيحاً', 'warning'); return; }
+  if (paid >= activeDebtTotal) {
+    closeModal('partialPayModal');
+    await payAllDebts(activeDebtCustomerId, activeDebtTotal);
+    return;
+  }
+
+  const now  = new Date().toISOString();
+  const user = getSession();
+  const c    = allCustomers.find(x => x.id === activeDebtCustomerId);
+
+  if (_partialSingleDebtId) {
+    // Pay specific debt partially
+    const debt = await dbGet('debts', _partialSingleDebtId);
+    if (debt) {
+      debt.originalAmount = debt.originalAmount || debt.amount;
+      debt.amount = debt.amount - paid;
+      await dbPut('debts', debt);
+    }
+  } else {
+    // Pay against all unpaid debts (oldest first)
+    let remaining = paid;
+    const unpaid = allDebts.filter(d => d.customerId === activeDebtCustomerId && !d.isPaid)
+                           .sort((a,b) => new Date(a.date) - new Date(b.date));
+    for (const d of unpaid) {
+      if (remaining <= 0) break;
+      if (remaining >= d.amount) { remaining -= d.amount; d.isPaid = 1; d.paidDate = now; d.originalAmount = d.originalAmount || d.amount; await dbPut('debts', d); }
+      else { d.originalAmount = d.originalAmount || d.amount; d.amount -= remaining; await dbPut('debts', d); remaining = 0; }
+    }
+  }
+
+  // Register as a sale (settlement record)
+  const invoiceNumber = await getNextInvoiceNumber();
+  await dbAdd('sales', {
+    invoiceNumber, userId: user.id, customerId: activeDebtCustomerId,
+    total: paid, discount: 0, paid,
+    isDebt: 0, isCancelled: 0, date: now,
+    debtSettlement: true,
+    note: `تسديد جزئي دين — ${c ? c.name : ''}`
+  });
+  await dbAdd('logs', { action: 'partial_debt_pay', details: `تسديد جزئي ${paid} ${currency} — ${c ? c.name : ''}`, date: now });
+
+  toast(`✅ تم تسجيل دفع ${paid.toFixed(2)} ${currency}`, 'success', 3000);
+  closeModal('partialPayModal');
+
+  if (await customConfirmAsync('هل تريد طباعة وصل التسديد الجزئي؟')) {
+    // Recalculate remaining debt after payment
+    const updatedDebts = await dbGetAll('debts');
+    const remainAfter = updatedDebts.filter(d => d.customerId === activeDebtCustomerId && !d.isPaid).reduce((s,d)=>s+d.amount,0);
+    // حساب إجمالي الديون قبل هذه الدفعة
+    const prevTotal = remainAfter + paid;
+    await printInvoice({
+      invoiceNumber,
+      total:            prevTotal,      // إجمالي الدين الأصلي
+      discount:         0,
+      paid:             paid,           // المبلغ المدفوع الآن
+      remainingDebt:    remainAfter,    // المتبقي بعد الدفع
+      isDebt:           1,
+      date:             now,
+      customerName:     c ? c.name  : '',
+      customerPhone:    c ? c.phone : '',
+      debtSettlement:   true,
+      partialSettlement:true
+    }, [{ productName: 'وصل تسديد جزئي', quantity: 1, unitPrice: paid, total: paid }]);
+  }
+  await loadAll();
+}
+
+async function payDebt(debtId, amount, customerId) {
+  const _ok1 = await customConfirmAsync(`تسديد ${amount.toFixed(2)} ${currency}؟`);
+  if (!_ok1) return;
+  const now  = new Date().toISOString();
+  const debt = await dbGet('debts', debtId);
+  const c    = allCustomers.find(x => x.id === customerId);
+  debt.isPaid = 1; debt.paidDate = now;
+  debt.originalAmount = debt.originalAmount || debt.amount;
+  await dbPut('debts', debt);
+  if (debt.saleId) {
+    const s = await dbGet('sales', debt.saleId);
+    if (s) { s.isDebt = 0; s.debtPaidDate = now; await dbPut('sales', s); }
+  }
+  const invoiceNumber = await getNextInvoiceNumber();
+  const user = getSession();
+  await dbAdd('sales', {
+    invoiceNumber, userId: user.id, customerId,
+    total: amount, discount: 0, paid: amount,
+    isDebt: 0, isCancelled: 0, date: now,
+    debtSettlement: true, note: `تسديد كلي لدين — ${c ? c.name : ''}`
+  });
+  await dbAdd('logs', { action: 'debt_paid', details: `تسديد كلي ${amount} ${currency} — ${c ? c.name : ''}`, date: now });
+  toast(`✅ تم تسديد الدين ${amount.toFixed(2)} ${currency}`, 'success');
+  closeModal('debtDetailModal');
+  if (await customConfirmAsync('طباعة وصل التسديد؟')) {
+    await printInvoice({
+      invoiceNumber,
+      total:          amount,
+      discount:       0,
+      paid:           amount,
+      remainingDebt:  0,
+      isDebt:         0,
+      date:           now,
+      customerName:   c ? c.name  : '',
+      customerPhone:  c ? c.phone : '',
+      debtSettlement: true
+    }, [{ productName: 'وصل تسديد دين كامل', quantity: 1, unitPrice: amount, total: amount }]);
+  }
+  await loadAll();
+}
+
+async function payAllDebts(customerId, totalAmount) {
+  const _ok2 = await customConfirmAsync(`تسديد كامل الديون: ${totalAmount.toFixed(2)} ${currency}؟`);
+  if (!_ok2) return;
+  const now  = new Date().toISOString();
+  const c    = allCustomers.find(x => x.id === customerId);
+  const unpaid = allDebts.filter(d => d.customerId === customerId && !d.isPaid);
+  for (const d of unpaid) {
+    d.isPaid = 1; d.paidDate = now;
+    d.originalAmount = d.originalAmount || d.amount;
+    await dbPut('debts', d);
+    if (d.saleId) { const s = await dbGet('sales', d.saleId); if (s) { s.isDebt = 0; s.debtPaidDate = now; await dbPut('sales', s); } }
+  }
+  const invoiceNumber = await getNextInvoiceNumber();
+  const user = getSession();
+  await dbAdd('sales', {
+    invoiceNumber, userId: user.id, customerId,
+    total: totalAmount, discount: 0, paid: totalAmount,
+    isDebt: 0, isCancelled: 0, date: now,
+    debtSettlement: true, note: `تسديد كلي جميع الديون — ${c ? c.name : ''}`
+  });
+  await dbAdd('logs', { action: 'all_debt_paid', details: `تسديد كلي ${totalAmount} ${currency} — ${c ? c.name : ''}`, date: now });
+  toast(`✅ تم تسديد كامل الديون: ${totalAmount.toFixed(2)} ${currency}`, 'success', 3000);
+  if (await customConfirmAsync('طباعة وصل التسديد؟')) {
+    await printInvoice({
+      invoiceNumber,
+      total:          totalAmount,
+      discount:       0,
+      paid:           totalAmount,
+      remainingDebt:  0,
+      isDebt:         0,
+      date:           now,
+      customerName:   c ? c.name  : '',
+      customerPhone:  c ? c.phone : '',
+      debtSettlement: true
+    }, [{ productName: 'وصل تسديد جميع الديون', quantity: 1, unitPrice: totalAmount, total: totalAmount }]);
+  }
+  await loadAll();
+}
+
+async function printDebtInvoice(customerId) {
+  const c    = allCustomers.find(x => x.id === customerId);
+  const debts = allDebts.filter(d => d.customerId === customerId && !d.isPaid);
+  if (!debts.length) { toast('لا توجد ديون لهذا الزبون', 'info'); return; }
+  const totalDebt = debts.reduce((s, d) => s + d.amount, 0);
+  const firstSale = debts[0].saleId ? await dbGet('sales', debts[0].saleId) : null;
+  const invoiceNumber = firstSale?.invoiceNumber || '—';
+  // Build items list showing each debt with its original date
+  const items = await Promise.all(debts.map(async d => {
+    const s = await dbGet('sales', d.saleId);
+    return {
+      productName: `دين — ${formatDate(d.date)} (${s ? s.invoiceNumber : '—'})`,
+      quantity: 1,
+      unitPrice: d.amount,
+      total: d.amount
+    };
+  }));
+  await printInvoice({
+    invoiceNumber,
+    total: totalDebt,
+    discount: 0,
+    paid: 0,
+    isDebt: 1,
+    date: debts[0].date,
+    customerName: c ? c.name : '',
+    customerPhone: c ? c.phone : ''
+  }, items);
+}
+
+async function printOneDebt(debtId) {
+  const debt = allDebts.find(d => d.id === debtId);
+  if (!debt) return;
+  const c    = allCustomers.find(x => x.id === debt.customerId);
+  const sale = await dbGet('sales', debt.saleId);
+  const origAmount = debt.originalAmount || debt.amount;
+  const paidSoFar  = origAmount - debt.amount;
+  await printInvoice({
+    invoiceNumber:  sale ? sale.invoiceNumber : '—',
+    total:          origAmount,
+    discount:       sale ? (sale.discount || 0) : 0,
+    paid:           paidSoFar,
+    remainingDebt:  debt.amount,
+    isDebt:         1,
+    date:           debt.date,
+    customerName:   c ? c.name : '',
+    customerPhone:  c ? c.phone : ''
+  }, sale
+    ? (await dbGetAll('saleItems')).filter(i => i.saleId === debt.saleId)
+    : [{ productName: 'دين', quantity: 1, unitPrice: origAmount, total: origAmount }]);
+}
+
+async function saveCustomer() {
+  const id    = document.getElementById('editCustomerId').value;
+  const name  = document.getElementById('customerName').value.trim();
+  const phone = document.getElementById('customerPhone').value.trim();
+  if (!name || !phone) { toast('الاسم والهاتف مطلوبان', 'warning'); return; }
+  const data = { name, phone, createdAt: new Date().toISOString() };
+  if (id) { data.id = parseInt(id); await dbPut('customers', data); toast('تم التعديل ✅', 'success'); }
+  else { await dbAdd('customers', data); toast('تمت الإضافة ✅', 'success'); }
+  closeModal('addCustomerModal');
+  document.getElementById('editCustomerId').value = '';
+  document.getElementById('customerName').value   = '';
+  document.getElementById('customerPhone').value  = '';
+  await loadAll();
+}
+
+async function editCustomer(id) {
+  const c = allCustomers.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('editCustomerId').value = c.id;
+  document.getElementById('customerName').value   = c.name;
+  document.getElementById('customerPhone').value  = c.phone || '';
+  document.getElementById('customerModalTitle').textContent = '✏️ تعديل بيانات الزبون';
+  openModal('addCustomerModal');
+}
+
+async function deleteCustomer(id) {
+  const hasDebt = allDebts.find(d => d.customerId === id && !d.isPaid);
+  if (hasDebt) { toast('⚠️ لا يمكن حذف زبون لديه ديون غير مسددة', 'warning'); return; }
+  if (!await customConfirmAsync('حذف هذا الزبون؟')) return;
+  await dbDelete('customers', id);
+  toast('تم الحذف', 'success');
+  await loadAll();
+}
+
+// ══════════════════════════════════════════════
+// سجل الدفعات الجزئية لكل زبون
+// ══════════════════════════════════════════════
+async function viewPaymentHistory(customerId) {
+  if (!customerId) return;
+  const c       = allCustomers.find(x => x.id === customerId);
+  // نستخدم جدول debtPayments + سجلات sales من نوع debtSettlement
+  const allSales   = await dbGetAll('sales');
+  const settlements = allSales
+    .filter(s => s.customerId === customerId && s.debtSettlement)
+    .sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  const p2 = n => ('0'+n).slice(-2);
+  const fmtDt = iso => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.getFullYear()+'/'+p2(d.getMonth()+1)+'/'+p2(d.getDate())+' '+p2(d.getHours())+':'+p2(d.getMinutes());
+  };
+
+  if (!settlements.length) {
+    document.getElementById('debtDetailContent').innerHTML =
+      `<div style="text-align:center;padding:24px;color:var(--text-secondary);">
+        <div style="font-size:2rem;">📜</div>
+        <p>لا توجد دفعات مسجلة لهذا الزبون</p>
+        <button class="btn btn-secondary btn-sm" onclick="viewDebts(${customerId})">← رجوع للديون</button>
+       </div>`;
+    return;
+  }
+
+  const rows = settlements.map(s => {
+    const isPartial = s.partialSettlement;
+    const badge = isPartial
+      ? `<span style="background:rgba(230,126,34,0.18);color:#e67e22;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;">🟡 جزئي</span>`
+      : `<span style="background:rgba(39,174,96,0.18);color:#27ae60;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;">✅ كلي</span>`;
+    return `<tr>
+      <td style="font-size:0.78rem;color:var(--text-secondary);">${fmtDt(s.date)}</td>
+      <td><b style="color:var(--primary-light);">${s.invoiceNumber || '—'}</b></td>
+      <td style="font-weight:900;color:var(--success);">${s.paid.toFixed(2)} ${currency}</td>
+      ${isPartial ? `<td style="color:var(--danger);font-size:0.85rem;">${(s.remainingDebt||0).toFixed(2)} ${currency}</td>` : '<td style="color:var(--success);">—</td>'}
+      <td>${badge}</td>
+    </tr>`;
+  }).join('');
+
+  const totalPaid = settlements.reduce((s,x) => s + (x.paid||0), 0);
+
+  document.getElementById('debtDetailContent').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <span style="font-weight:700;color:var(--primary-light);">📜 سجل دفعات: ${c ? c.name : ''}</span>
+      <button class="btn btn-secondary btn-sm" onclick="viewDebts(${customerId})">← رجوع للديون</button>
+    </div>
+    <div style="background:rgba(39,174,96,0.1);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:10px;font-size:0.88rem;">
+      إجمالي ما تم دفعه: <b style="color:var(--success);font-size:1rem;">${totalPaid.toFixed(2)} ${currency}</b>
+      &nbsp;|&nbsp; عدد الدفعات: <b>${settlements.length}</b>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table" style="font-size:0.83rem;">
+        <thead><tr>
+          <th>التاريخ والوقت</th><th>رقم الوصل</th>
+          <th>المدفوع</th><th>المتبقي</th><th>النوع</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// 💹 نظام الفائدة على الديون
+// ══════════════════════════════════════════════════════════════
+let _interestCustomerId = null;
+
+async function openInterestModal(customerId) {
+  if (!customerId) return;
+  _interestCustomerId = customerId;
+  const c       = allCustomers.find(x => x.id === customerId);
+  const unpaid  = allDebts.filter(d => d.customerId === customerId && !d.isPaid);
+  const total   = unpaid.reduce((s, d) => s + d.amount, 0);
+
+  if (!unpaid.length) {
+    toast('لا توجد ديون قائمة لهذا الزبون', 'info');
+    return;
+  }
+
+  // تحميل الإعدادات الافتراضية من الإعدادات
+  const defaultRate = parseFloat(await getSetting('debtInterestRate')) || 0;
+  const defaultType = await getSetting('debtInterestType') || 'daily';
+
+  document.getElementById('interestCustomerInfo').innerHTML =
+    `<b style="color:var(--primary-light);">👤 ${c ? c.name : ''}</b>
+     &nbsp;|&nbsp; عدد الديون: <b>${unpaid.length}</b>
+     &nbsp;|&nbsp; إجمالي الديون: <b style="color:var(--danger);">${total.toFixed(2)} ${currency}</b>`;
+
+  document.getElementById('interestType').value         = defaultType;
+  document.getElementById('interestRate').value         = defaultRate || '';
+  document.getElementById('interestFixedAmount').value  = '';
+  document.getElementById('interestNote').value         = '';
+  document.getElementById('interestPreview').style.display = 'none';
+
+  toggleInterestFields();
+  closeModal('debtDetailModal');
+  openModal('interestModal');
+}
+
+function toggleInterestFields() {
+  const type = document.getElementById('interestType').value;
+  document.getElementById('interestRateGroup').style.display  = type === 'fixed' ? 'none' : '';
+  document.getElementById('interestFixedGroup').style.display = type === 'fixed' ? ''     : 'none';
+  recalcInterest();
+}
+
+function recalcInterest() {
+  if (!_interestCustomerId) return;
+  const type    = document.getElementById('interestType').value;
+  const rate    = parseFloat(document.getElementById('interestRate').value) / 100 || 0;
+  const fixed   = parseFloat(document.getElementById('interestFixedAmount').value) || 0;
+  const unpaid  = allDebts.filter(d => d.customerId === _interestCustomerId && !d.isPaid);
+  const prev    = document.getElementById('interestPreview');
+
+  if (!unpaid.length) { prev.style.display = 'none'; return; }
+
+  let totalInterest = 0;
+  const lines = unpaid.map(d => {
+    const daysAgo   = Math.max(1, Math.floor((Date.now() - new Date(d.date)) / 86400000));
+    const monthsAgo = Math.max(1, Math.round(daysAgo / 30));
+    let interest = 0;
+    if      (type === 'daily')   interest = d.amount * rate * daysAgo / 365;
+    else if (type === 'monthly') interest = d.amount * rate * monthsAgo;
+    else                          interest = fixed;
+    totalInterest += interest;
+    return `<div style="display:flex;justify-content:space-between;font-size:0.8rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <span style="color:var(--text-secondary);">${d.amount.toFixed(2)} ${currency} (${daysAgo} يوم)</span>
+      <span style="color:#f59e0b;font-weight:700;">+${interest.toFixed(2)} ${currency}</span>
+    </div>`;
+  }).join('');
+
+  if (totalInterest <= 0) { prev.style.display = 'none'; return; }
+
+  prev.style.display    = '';
+  prev.style.background = 'rgba(245,158,11,0.1)';
+  prev.style.border     = '1px solid rgba(245,158,11,0.3)';
+  prev.innerHTML = `
+    <div style="font-size:0.78rem;font-weight:700;color:#f59e0b;margin-bottom:6px;">📊 تفصيل الفائدة لكل دين:</div>
+    ${lines}
+    <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:2px solid rgba(245,158,11,0.4);">
+      <span style="font-weight:800;color:var(--text-primary);">إجمالي الفائدة:</span>
+      <span style="font-weight:900;font-size:1.1rem;color:#f59e0b;">${totalInterest.toFixed(2)} ${currency}</span>
+    </div>`;
+}
+
+async function applyInterest() {
+  if (!_interestCustomerId) return;
+  const type    = document.getElementById('interestType').value;
+  const rate    = parseFloat(document.getElementById('interestRate').value) / 100 || 0;
+  const fixed   = parseFloat(document.getElementById('interestFixedAmount').value) || 0;
+  const note    = document.getElementById('interestNote').value.trim() || 'فائدة على الدين';
+  const unpaid  = allDebts.filter(d => d.customerId === _interestCustomerId && !d.isPaid);
+  const c       = allCustomers.find(x => x.id === _interestCustomerId);
+
+  if (!unpaid.length) { toast('لا توجد ديون قائمة', 'warning'); return; }
+
+  // حساب مجموع الفائدة
+  let totalInterest = 0;
+  unpaid.forEach(d => {
+    const daysAgo   = Math.max(1, Math.floor((Date.now() - new Date(d.date)) / 86400000));
+    const monthsAgo = Math.max(1, Math.round(daysAgo / 30));
+    if      (type === 'daily')   totalInterest += d.amount * rate * daysAgo / 365;
+    else if (type === 'monthly') totalInterest += d.amount * rate * monthsAgo;
+    else                          totalInterest += fixed;
+  });
+
+  if (totalInterest <= 0) { toast('مبلغ الفائدة يساوي صفر، تحقق من النسبة', 'warning'); return; }
+
+  const confirmed = await customConfirmAsync(
+    `إضافة فائدة بمبلغ ${totalInterest.toFixed(2)} ${currency} على ديون ${c ? c.name : ''}؟\n\nسيتم إضافتها كدين جديد.`
+  );
+  if (!confirmed) return;
+
+  // أضف الفائدة كدين جديد (مثل بيع منتج عادي)
+  const invoiceNumber = await getNextInvoiceNumber();
+  const now           = new Date().toISOString();
+  const user          = getSession();
+
+  // سجّل في sales كبيع عادي نوعه فائدة
+  const saleId = await dbAdd('sales', {
+    invoiceNumber,
+    userId    : user?.id || 0,
+    customerId: _interestCustomerId,
+    total     : totalInterest,
+    discount  : 0,
+    paid      : 0,
+    isDebt    : 1,
+    isCancelled: 0,
+    date      : now,
+    note      : `💹 ${note}`
+  });
+
+  // سجّل بنود البيع
+  await dbAdd('saleItems', {
+    saleId,
+    productId  : 0,
+    productName: `💹 فائدة — ${note}`,
+    quantity   : 1,
+    unitPrice  : totalInterest,
+    total      : totalInterest,
+    isInterest : 1,
+    date       : now
+  });
+
+  // سجّل كدين
+  await dbAdd('debts', {
+    customerId    : _interestCustomerId,
+    saleId,
+    amount        : totalInterest,
+    originalAmount: totalInterest,
+    isPaid        : 0,
+    date          : now,
+    isInterest    : 1,
+    interestType  : type,
+    interestRate  : type !== 'fixed' ? (rate * 100) : 0,
+    note
+  });
+
+  await dbAdd('logs', {
+    action    : 'interest_added',
+    customerId: _interestCustomerId,
+    customerName: c ? c.name : '',
+    amount    : totalInterest,
+    type, note,
+    by        : user?.username || '—',
+    date      : now
+  });
+
+  toast(`✅ تم إضافة فائدة ${totalInterest.toFixed(2)} ${currency} لـ ${c ? c.name : ''}`, 'success', 4000);
+  closeModal('interestModal');
+  await loadAll();
+  viewDebts(_interestCustomerId);
+}
+
+function doLogout() { customConfirm('هل تريد تسجيل الخروج؟', () => { clearSession(); window.location.href = 'index.html'; }); }
+init();
+</script>
+</body>
+</html>
