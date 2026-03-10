@@ -222,6 +222,10 @@
         <div class="dsb-icon">👤</div>
         <div class="dsb-label">أداء البائعين</div>
       </div>
+      <div class="dsb-item" onclick="showPanel('accounting')" id="dsb-accounting">
+        <div class="dsb-icon">💰</div>
+        <div class="dsb-label">المحاسبة</div>
+      </div>
       <div style="margin-top:auto;padding-top:12px;border-top:1px solid var(--border);">
         <a href="sale.html" class="dsb-item" style="text-decoration:none;">
           <div class="dsb-icon">🔙</div>
@@ -281,15 +285,7 @@
             <div style="margin-top:6px;font-size:0.68rem;"><span id="kpiMargin" style="color:#3b82f6;font-weight:700;">هامش: —</span></div>
           </div>
 
-          <!-- 4. المصاريف التشغيلية -->
-          <div style="background:var(--bg-card);border:1px solid var(--border);border-top:3px solid #f59e0b;border-radius:var(--radius);padding:12px 14px;">
-            <div style="font-size:0.68rem;color:#f59e0b;font-weight:700;margin-bottom:5px;">💸 المصاريف التشغيلية</div>
-            <div id="kpiExpenses" style="font-size:1.4rem;font-weight:900;color:#f59e0b;font-family:Impact,sans-serif;">—</div>
-            <div style="font-size:0.65rem;color:var(--text-secondary);margin-top:5px;line-height:1.4;">
-              إيجار، رواتب، كهرباء...<br>
-              <span style="color:rgba(255,255,255,0.3);">(ما تدفعه لتشغيل المتجر)</span>
-            </div>
-          </div>
+
 
           <!-- 5. الربح الصافي — البطاقة الأهم -->
           <div style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(124,58,237,0.08));border:2px solid rgba(124,58,237,0.5);border-top:3px solid #7c3aed;border-radius:var(--radius);padding:12px 14px;box-shadow:0 0 18px rgba(124,58,237,0.15);">
@@ -314,6 +310,26 @@
             </div>
             <div style="margin-top:6px;display:flex;align-items:center;gap:4px;font-size:0.68rem;">
               <span id="kpiDebtsDelta" class="kpi-delta delta-flat">—</span><span style="color:var(--text-secondary);">مقارنة بالأمس</span>
+            </div>
+          </div>
+
+          <!-- 7. المصاريف العامة اليوم -->
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-top:3px solid #f59e0b;border-radius:var(--radius);padding:12px 14px;">
+            <div style="font-size:0.68rem;color:#f59e0b;font-weight:700;margin-bottom:5px;">💸 مصاريف عامة اليوم</div>
+            <div id="kpiGenExpenses" style="font-size:1.4rem;font-weight:900;color:#f59e0b;font-family:Impact,sans-serif;">—</div>
+            <div style="font-size:0.65rem;color:var(--text-secondary);margin-top:5px;line-height:1.4;">
+              فواتير مسددة اليوم<br>
+              <span style="color:rgba(255,255,255,0.3);">(كهرباء، كراء، إنترنت...)</span>
+            </div>
+          </div>
+
+          <!-- 8. رواتب العمال اليوم -->
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-top:3px solid #10b981;border-radius:var(--radius);padding:12px 14px;">
+            <div style="font-size:0.68rem;color:#10b981;font-weight:700;margin-bottom:5px;">👷 رواتب العمال اليوم</div>
+            <div id="kpiWorkerSalaries" style="font-size:1.4rem;font-weight:900;color:#10b981;font-family:Impact,sans-serif;">—</div>
+            <div style="font-size:0.65rem;color:var(--text-secondary);margin-top:5px;line-height:1.4;">
+              رواتب مسددة اليوم<br>
+              <span style="color:rgba(255,255,255,0.3);">(مسجّلة من إدارة العمال)</span>
             </div>
           </div>
 
@@ -652,6 +668,7 @@
       <a class="nav-item" href="customers.html"><span class="nav-label" data-i18n="navCustomers">الزبائن</span></a>
       <a class="nav-item active" href="reports.html" data-role="admin,manager"><span class="nav-label" data-i18n="navReports">إدارة الأعمال</span></a>
       <a class="nav-item" href="suppliers.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSuppliers">الموردون</span></a>
+      <a class="nav-item" href="expenses.html" data-role="admin,manager"><span class="nav-label">المصاريف والعمال</span></a>
       <span class="nav-group-label" data-i18n="navGroupSystem">النظام</span>
       <a class="nav-item" href="users.html" data-role="admin"><span class="nav-label" data-i18n="navUsers">المستخدمون</span></a>
       <a class="nav-item" href="settings.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSettings">الإعدادات</span></a>
@@ -661,33 +678,34 @@
     <div class="sidebar-footer"><span id="sidebarVersion">v6.0.0</span><span>POS DZ 2026</span></div>
   </div>
 
-  <div class="tab-content" id="content-accounting" style="display:none;">
-    <div class="page-section">
-      <div class="section-header">
-        <h2 class="section-title"><i class="fa-solid fa-coins"></i> النظام المحاسبي</h2>
-        <input type="date" id="accDate" onchange="loadAccounting()"
-          style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:7px 12px;font-family:var(--font-main);font-size:0.9rem;"/>
+      <!-- ════ ACCOUNTING PANEL ════ -->
+      <div class="section-panel" id="panel-accounting">
+        <div class="sec-header">
+          <button class="sec-back-btn" onclick="showPanel('dashboard')">← رجوع</button>
+          <span class="sec-title">💰 النظام المحاسبي</span>
+          <input type="date" id="accDate" onchange="loadAccounting()"
+            style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:7px 12px;font-family:var(--font-main);font-size:0.9rem;"/>
+        </div>
+        <div class="stats-grid" id="accStats">
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15);"><i class="fa-solid fa-money-bill-trend-up" style="color:#10b981;"></i></div><div class="stat-info"><span class="stat-label">مداخيل البيع</span><span class="stat-value" id="accRevenue">0.00</span></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15);"><i class="fa-solid fa-cart-flatbed" style="color:#ef4444;"></i></div><div class="stat-info"><span class="stat-label">تكلفة الشراء</span><span class="stat-value" id="accCost">0.00</span></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15);"><i class="fa-solid fa-receipt" style="color:#f59e0b;"></i></div><div class="stat-info"><span class="stat-label">المصاريف</span><span class="stat-value" id="accExpenses">0.00</span></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(124,58,237,0.15);"><i class="fa-solid fa-sack-dollar" style="color:#7C3AED;"></i></div><div class="stat-info"><span class="stat-label">صافي الربح</span><span class="stat-value" id="accProfit">0.00</span></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15);"><i class="fa-solid fa-credit-card" style="color:#ef4444;"></i></div><div class="stat-info"><span class="stat-label">الديون المعلقة</span><span class="stat-value" id="accDebts">0.00</span></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(59,130,246,0.15);"><i class="fa-solid fa-bag-shopping" style="color:#3b82f6;"></i></div><div class="stat-info"><span class="stat-label">عدد المبيعات</span><span class="stat-value" id="accSalesCount">0</span></div></div>
+        </div>
+        <div class="section-header" style="margin-top:20px;">
+          <h3 class="section-title" style="font-size:1rem;"><i class="fa-solid fa-plus-circle"></i> إضافة مصروف</h3>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+          <input type="text"   id="expCategory" placeholder="الفئة (إيجار، كهرباء...)" style="flex:1;min-width:130px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:9px 12px;font-family:var(--font-main);font-size:0.9rem;outline:none;"/>
+          <input type="number" id="expAmount"   placeholder="المبلغ" min="0"             style="width:120px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:9px 12px;font-family:var(--font-main);font-size:0.9rem;outline:none;text-align:center;"/>
+          <input type="text"   id="expNote"     placeholder="ملاحظة"                    style="flex:2;min-width:150px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:9px 12px;font-family:var(--font-main);font-size:0.9rem;outline:none;"/>
+          <button class="btn btn-primary"   onclick="addExpenseNow()"><i class="fa-solid fa-plus"></i> إضافة</button>
+          <button class="btn btn-secondary" onclick="sendDailyReportEmail()"><i class="fa-solid fa-envelope"></i> إرسال تقرير</button>
+        </div>
+        <div id="expensesList"></div>
       </div>
-      <div class="stats-grid" id="accStats">
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15);"><i class="fa-solid fa-money-bill-trend-up" style="color:#10b981;"></i></div><div class="stat-info"><span class="stat-label">مداخيل البيع</span><span class="stat-value" id="accRevenue">0.00</span></div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15);"><i class="fa-solid fa-cart-flatbed" style="color:#ef4444;"></i></div><div class="stat-info"><span class="stat-label">تكلفة الشراء</span><span class="stat-value" id="accCost">0.00</span></div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15);"><i class="fa-solid fa-receipt" style="color:#f59e0b;"></i></div><div class="stat-info"><span class="stat-label">المصاريف</span><span class="stat-value" id="accExpenses">0.00</span></div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(124,58,237,0.15);"><i class="fa-solid fa-sack-dollar" style="color:#7C3AED;"></i></div><div class="stat-info"><span class="stat-label">صافي الربح</span><span class="stat-value" id="accProfit">0.00</span></div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15);"><i class="fa-solid fa-credit-card" style="color:#ef4444;"></i></div><div class="stat-info"><span class="stat-label">الديون المعلقة</span><span class="stat-value" id="accDebts">0.00</span></div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(59,130,246,0.15);"><i class="fa-solid fa-bag-shopping" style="color:#3b82f6;"></i></div><div class="stat-info"><span class="stat-label">عدد المبيعات</span><span class="stat-value" id="accSalesCount">0</span></div></div>
-      </div>
-      <div class="section-header" style="margin-top:20px;">
-        <h3 class="section-title" style="font-size:1rem;"><i class="fa-solid fa-plus-circle"></i> إضافة مصروف</h3>
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
-        <input type="text" id="expCategory" placeholder="الفئة (إيجار، كهرباء...)" style="flex:1;min-width:130px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:9px 12px;font-family:var(--font-main);font-size:0.9rem;outline:none;"/>
-        <input type="number" id="expAmount" placeholder="المبلغ" min="0" style="width:120px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:9px 12px;font-family:var(--font-main);font-size:0.9rem;outline:none;text-align:center;"/>
-        <input type="text" id="expNote" placeholder="ملاحظة" style="flex:2;min-width:150px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:9px 12px;font-family:var(--font-main);font-size:0.9rem;outline:none;"/>
-        <button class="btn btn-primary" onclick="addExpenseNow()"><i class="fa-solid fa-plus"></i> إضافة</button>
-        <button class="btn btn-secondary" onclick="sendDailyReportEmail()"><i class="fa-solid fa-envelope"></i> إرسال تقرير</button>
-      </div>
-      <div id="expensesList"></div>
-    </div>
 
       <!-- ════ PEAK HOURS PANEL ════ -->
       <div class="section-panel" id="panel-peakHours">
@@ -796,6 +814,115 @@ function showPanel(name) {
   if (name === 'archiveDebts')  loadArchiveDebtsPanel();
   if (name === 'peakHours')     { setPeakMonth(); }
   if (name === 'sellers')       { setSellerMonth(); }
+  if (name === 'accounting')    { loadAccounting(); }
+}
+
+// ════ ACCOUNTING FUNCTIONS ════
+async function loadAccounting() {
+  const dateEl = document.getElementById('accDate');
+  const date   = dateEl?.value || new Date().toISOString().slice(0,10);
+  if (dateEl && !dateEl.value) dateEl.value = date;
+
+  const [sales, saleItems, expenses, debts, purchases] = await Promise.all([
+    dbGetAll('sales'), dbGetAll('saleItems'), dbGetAll('expenses'),
+    dbGetAll('debts'), dbGetAll('purchases')
+  ]);
+
+  const daySales    = sales.filter(s => !s.isCancelled && s.date?.slice(0,10) === date);
+  const revenue     = daySales.reduce((s, x) => s + parseFloat(x.total||0), 0);
+  const salesCount  = daySales.length;
+
+  // تكلفة الشراء = buyPrice × كميات مبيعة اليوم
+  const dayItemIds  = new Set(daySales.map(s => s.id));
+  const dayItems    = saleItems.filter(i => dayItemIds.has(i.saleId));
+  const allProducts = await dbGetAll('products');
+  const cost        = dayItems.reduce((s, i) => {
+    const p = allProducts.find(x => x.id === i.productId);
+    return s + (parseFloat(p?.buyPrice||0) * parseFloat(i.quantity||1));
+  }, 0);
+
+  // مصاريف اليوم
+  const dayExpenses = expenses.filter(e => e.date?.slice(0,10) === date);
+  const expTotal    = dayExpenses.reduce((s, e) => s + parseFloat(e.amount||0), 0);
+
+  const profit      = revenue - cost - expTotal;
+  const debtTotal   = debts.filter(d => !d.isPaid).reduce((s, d) => s + parseFloat(d.amount||0), 0);
+
+  const cur = await getSetting('currency') || 'DA';
+  const fmt = v => parseFloat(v).toFixed(2) + ' ' + cur;
+
+  document.getElementById('accRevenue')?.setAttribute('data-val', fmt(revenue));
+  document.getElementById('accCost')?.setAttribute('data-val', fmt(cost));
+  document.getElementById('accExpenses')?.setAttribute('data-val', fmt(expTotal));
+  document.getElementById('accProfit')?.setAttribute('data-val', fmt(profit));
+  document.getElementById('accDebts')?.setAttribute('data-val', fmt(debtTotal));
+  document.getElementById('accSalesCount')?.setAttribute('data-val', salesCount);
+
+  ['accRevenue','accCost','accExpenses','accProfit','accDebts','accSalesCount'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = el.getAttribute('data-val') || '0.00';
+  });
+
+  // قائمة المصاريف
+  const listEl = document.getElementById('expensesList');
+  if (!listEl) return;
+  if (!dayExpenses.length) {
+    listEl.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">لا توجد مصاريف لهذا اليوم</p>';
+    return;
+  }
+  listEl.innerHTML = dayExpenses.map(e => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;">
+      <span style="font-weight:700;color:var(--primary-light);flex:1;">${e.category}</span>
+      <span style="color:var(--text-secondary);font-size:0.82rem;flex:2;">${e.note||''}</span>
+      <span style="font-weight:900;color:var(--danger);">- ${parseFloat(e.amount).toFixed(2)} ${cur}</span>
+      <button class="btn btn-sm btn-danger" onclick="deleteAccountingExpense(${e.id})">🗑️</button>
+    </div>`).join('');
+}
+
+async function addExpenseNow() {
+  const cat    = document.getElementById('expCategory')?.value.trim();
+  const amount = parseFloat(document.getElementById('expAmount')?.value);
+  const note   = document.getElementById('expNote')?.value.trim() || '';
+  const date   = document.getElementById('accDate')?.value || new Date().toISOString().slice(0,10);
+
+  if (!cat)           { toast('أدخل فئة المصروف', 'warning'); return; }
+  if (!amount||amount<=0){ toast('أدخل مبلغاً صحيحاً', 'warning'); return; }
+
+  await dbAdd('expenses', { category: cat, amount, date, note, createdAt: new Date().toISOString() });
+  document.getElementById('expCategory').value = '';
+  document.getElementById('expAmount').value   = '';
+  document.getElementById('expNote').value     = '';
+  toast('✅ تم إضافة المصروف', 'success');
+  await loadAccounting();
+}
+
+async function deleteAccountingExpense(id) {
+  if (!await customConfirmAsync('حذف هذا المصروف؟')) return;
+  await dbDelete('expenses', id);
+  toast('تم الحذف', 'success');
+  await loadAccounting();
+}
+
+async function sendDailyReportEmail() {
+  const date = document.getElementById('accDate')?.value || todayStr();
+  const [sales, saleItems, expenses, debts, products] = await Promise.all([
+    dbGetAll('sales'), dbGetAll('saleItems'), dbGetAll('expenses'),
+    dbGetAll('debts'), dbGetAll('products')
+  ]);
+  const daySales   = sales.filter(s => !s.isCancelled && s.date?.slice(0,10) === date);
+  const revenue    = daySales.reduce((s,x) => s + parseFloat(x.total||0), 0);
+  const salesCount = daySales.length;
+  const dayItemIds = new Set(daySales.map(s => s.id));
+  const dayItems   = saleItems.filter(i => dayItemIds.has(i.saleId));
+  const cost       = dayItems.reduce((s,i) => {
+    const p = products.find(x => x.id === i.productId);
+    return s + (parseFloat(p?.buyPrice||0) * parseFloat(i.quantity||1));
+  }, 0);
+  const expTotal = expenses.filter(e => e.date?.slice(0,10) === date)
+                           .reduce((s,e) => s + parseFloat(e.amount||0), 0);
+  const debtTotal = debts.filter(d => !d.isPaid).reduce((s,d) => s + parseFloat(d.amount||0), 0);
+  await EMAIL.sendDailyReport({ revenue, cost, expenses: expTotal, profit: revenue - cost - expTotal, debts: debtTotal, salesCount });
+  toast('📧 تم إرسال التقرير', 'success');
 }
 
 // ═══════════════════════════════════════════════
@@ -868,6 +995,15 @@ async function updateSidebarValues() {
   const expTotal    = todayExp.reduce((s,e)=>s+e.amount,0);
   const yestExp     = allExpenses.filter(e => e.date && e.date.startsWith(yest)).reduce((s,e)=>s+e.amount,0);
 
+  // ── المصاريف العامة ورواتب العمال من سجل المداخيل (pos_dailyEntries) ──
+  let dailyGenExp   = 0;
+  let dailyWorkerSal= 0;
+  try {
+    const entries = JSON.parse(localStorage.getItem('pos_dailyEntries_' + today) || '[]');
+    dailyGenExp    = entries.filter(e => e.type === 'مصروف عام').reduce((s,e) => s + (e.amount||0), 0);
+    dailyWorkerSal = entries.filter(e => e.type === 'راتب').reduce((s,e) => s + (e.amount||0), 0);
+  } catch(e) { /* localStorage غير متاح */ }
+
   // ── منتجات ناقصة ──
   const lowStock = allProducts.filter(p => (p.quantity || 0) < 5 && (p.quantity || 0) >= 0);
 
@@ -884,7 +1020,6 @@ async function updateSidebarValues() {
   set('kpiCost',        fmt(costToday));
   set('kpiGrossProfit', fmt(grossProfitToday));
   set('kpiMargin',      `هامش: ${margin}%`);
-  set('kpiExpenses',    fmt(expTotal));
   set('kpiInvoices',    todaySales.length + (todaySettle.length ? '+'+todaySettle.length : ''));
   set('kpiDebts',       fmt(debtTotal));
   set('kpiLowStock',    lowStock.length > 0 ? lowStock.length + ' منتج' : '✅ جيد');
@@ -894,6 +1029,10 @@ async function updateSidebarValues() {
     kpiNet.textContent = fmt(netToday);
     kpiNet.style.color = netToday >= 0 ? 'var(--primary-light)' : 'var(--danger)';
   }
+
+  // ── خانتا المصاريف العامة ورواتب العمال ──
+  set('kpiGenExpenses',    dailyGenExp    > 0 ? fmt(dailyGenExp)    : '0.00 ' + currency);
+  set('kpiWorkerSalaries', dailyWorkerSal > 0 ? fmt(dailyWorkerSal) : '0.00 ' + currency);
 
   // ── Delta badges ──
   setDelta('kpiCashDelta',     cashIn,             yestCashIn);
@@ -1324,7 +1463,12 @@ async function loadDailyPanel() {
   const total = sales.filter(s=>!s.isDebt).reduce((s,x)=>s+x.total,0);
   document.getElementById('dailyTotalVal').textContent = total.toFixed(2) + ' ' + currency;
 
-  if (!sales.length) {
+  // ── قراءة سجل المصاريف والرواتب من pos_dailyEntries ──
+  let dailyEntries = [];
+  try { dailyEntries = JSON.parse(localStorage.getItem('pos_dailyEntries_' + date) || '[]'); } catch(e) { dailyEntries = []; }
+  const entriesTotal = dailyEntries.reduce((s,e) => s + (e.amount||0), 0);
+
+  if (!sales.length && !dailyEntries.length) {
     document.getElementById('dailyInvoicesWrap').innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>لا توجد مبيعات في هذا اليوم</p></div>';
     return;
   }
@@ -1355,15 +1499,42 @@ async function loadDailyPanel() {
     </tr>`;
   }));
 
+  // ── صفوف المصاريف والرواتب المسجّلة ──
+  const entryRows = dailyEntries.map(e => {
+    const icon   = e.type === 'راتب' ? '👷' : '💸';
+    const color  = e.type === 'راتب' ? '#10b981' : '#f59e0b';
+    const badge  = `<span style="font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:10px;background:rgba(239,68,68,0.12);color:#ef4444;">${e.type}</span>`;
+    const t = new Date(e.createdAt);
+    const p2 = n => ('0'+n).slice(-2);
+    const timeStr = p2(t.getHours())+':'+p2(t.getMinutes());
+    return `<tr style="background:rgba(239,68,68,0.04);">
+      <td style="color:var(--text-secondary);font-size:0.8rem;">${icon}</td>
+      <td style="font-size:0.78rem;color:var(--text-secondary);">${timeStr}</td>
+      <td style="font-size:0.85rem;color:var(--text-primary);">${e.label}</td>
+      <td style="font-weight:900;color:#ef4444;">- ${parseFloat(e.amount).toFixed(2)} ${currency}</td>
+      <td>${badge}</td>
+      <td></td>
+    </tr>`;
+  }).join('');
+
+  // ── صف الإجمالي إذا وجدت مصاريف ──
+  const entriesSummary = dailyEntries.length
+    ? `<tr style="background:rgba(239,68,68,0.08);border-top:2px solid rgba(239,68,68,0.2);">
+        <td colspan="3" style="font-weight:800;color:#ef4444;font-size:0.85rem;">📊 إجمالي الخصومات (مصاريف + رواتب)</td>
+        <td style="font-weight:900;color:#ef4444;">- ${entriesTotal.toFixed(2)} ${currency}</td>
+        <td colspan="2"></td>
+      </tr>`
+    : '';
+
   document.getElementById('dailyInvoicesWrap').innerHTML = `
     <div class="inv-table-wrap">
       <div class="inv-table-header">
-        <span class="text-muted" style="font-size:0.85rem;">${sales.length} فاتورة</span>
-        <span style="color:var(--success);font-weight:700;">نقداً: ${total.toFixed(2)} ${currency}</span>
+        <span class="text-muted" style="font-size:0.85rem;">${sales.length} فاتورة${dailyEntries.length ? ' + ' + dailyEntries.length + ' خصم' : ''}</span>
+        <span style="color:var(--success);font-weight:700;">نقداً: ${total.toFixed(2)} ${currency}${entriesTotal > 0 ? ' | خصومات: ' + entriesTotal.toFixed(2) + ' ' + currency : ''}</span>
       </div>
       <table class="data-table">
-        <thead><tr><th>الفاتورة</th><th>الوقت</th><th>الزبون</th><th>المبلغ</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-        <tbody>${rows.join('')}</tbody>
+        <thead><tr><th>الفاتورة</th><th>الوقت</th><th>الزبون / التفصيل</th><th>المبلغ</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+        <tbody>${rows.join('')}${entryRows}${entriesSummary}</tbody>
       </table>
     </div>`;
 }
@@ -1625,9 +1796,87 @@ async function addScaleEntry() {
 // MISC
 // ═══════════════════════════════════════════════
 async function closeDay() {
-  if (!await customConfirmAsync('إقفال اليوم وإعادة ترقيم الفواتير من #001؟')) return;
+  if (!await customConfirmAsync('إقفال اليوم؟ سيُحفظ تقرير اليوم وتُعاد فواتير من #001')) return;
+
+  const today = todayStr();
+  const [allSales, allSaleItems, allExpenses, allDebts, allProducts] = await Promise.all([
+    dbGetAll('sales'), dbGetAll('saleItems'), dbGetAll('expenses'),
+    dbGetAll('debts'), dbGetAll('products')
+  ]);
+
+  // إحصائيات اليوم
+  const daySales   = allSales.filter(s => !s.isCancelled && s.date?.slice(0,10) === today);
+  const revenue    = daySales.reduce((s,x) => s + parseFloat(x.total||0), 0);
+  const salesCount = daySales.length;
+
+  const dayItemIds = new Set(daySales.map(s => s.id));
+  const dayItems   = allSaleItems.filter(i => dayItemIds.has(i.saleId));
+  const cost       = dayItems.reduce((s,i) => {
+    const p = allProducts.find(x => x.id === i.productId);
+    return s + (parseFloat(p?.buyPrice||0) * parseFloat(i.quantity||1));
+  }, 0);
+
+  const dayExp     = allExpenses.filter(e => e.date?.slice(0,10) === today);
+  const expenses   = dayExp.reduce((s,e) => s + parseFloat(e.amount||0), 0);
+  const profit     = revenue - cost - expenses;
+  const debts      = allDebts.filter(d => !d.isPaid).reduce((s,d) => s + parseFloat(d.amount||0), 0);
+
+  const cur = await getSetting('currency') || 'DA';
+  const storeName = await getSetting('storeName') || 'POS DZ';
+
+  // حفظ السنابشوت في logs
+  await dbAdd('logs', {
+    action: 'closeDay',
+    details: JSON.stringify({ date:today, revenue, cost, expenses, profit, debts, salesCount }),
+    date: new Date().toISOString()
+  });
+
+  // إرسال تقرير البريد
+  await EMAIL.sendDailyReport({ revenue, cost, expenses, profit, debts, salesCount });
+
+  // طباعة تقرير إقفال اليوم
+  const fmt = v => parseFloat(v).toFixed(2) + ' ' + cur;
+  const lineW = 40;
+  const H = '━'.repeat(lineW);
+  const L = '─'.repeat(lineW);
+  const ctr = t => ' '.repeat(Math.max(0, Math.floor((lineW - t.length)/2))) + t;
+  const now = new Date();
+  const p2  = n => ('0'+n).slice(-2);
+  const dateStr = now.getFullYear()+'/'+p2(now.getMonth()+1)+'/'+p2(now.getDate());
+  const timeStr = p2(now.getHours())+':'+p2(now.getMinutes());
+
+  const reportHTML = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">
+    <style>@page{size:80mm auto;margin:2mm;}*{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Courier New',monospace;font-size:10.5pt;font-weight:800;color:#000;background:#fff;width:100%;direction:rtl;white-space:pre;}
+    @media print{*{color:#000!important;background:transparent!important;}}</style>
+    </head><body>${[
+      ctr(storeName),
+      ctr('تقرير إقفال اليوم'),
+      H,
+      `التاريخ: ${dateStr}  ${timeStr}`,
+      `عدد الفواتير: ${salesCount}`,
+      H,
+      `مداخيل البيع:   ${fmt(revenue)}`,
+      `تكلفة الشراء:   ${fmt(cost)}`,
+      `المصاريف:       ${fmt(expenses)}`,
+      L,
+      `صافي الربح:     ${fmt(profit)}`,
+      H,
+      `الديون المعلقة: ${fmt(debts)}`,
+      H,
+      ctr('✦ تم الإقفال ✦'),
+      ''
+    ].join('\n')}</body></html>`;
+
+  const w = window.open('','_blank','width=320,height=500,toolbar=no,menubar=no');
+  if(w){ w.document.open(); w.document.write(reportHTML); w.document.close();
+    w.onload = ()=>{ setTimeout(()=>{ w.focus(); w.print(); w.onafterprint=()=>w.close(); setTimeout(()=>{try{w.close();}catch(e){}},9000); },350); };
+  }
+
+  // إعادة عداد الفواتير
   await resetDailyCounter();
-  toast('✅ تم إقفال اليوم', 'success', 3000);
+  _pushNotif('closeday_'+today,'🔒','إقفال اليوم',`تم إقفال يوم ${today} — ربح: ${fmt(profit)}`,'success');
+  toast('✅ تم إقفال اليوم — طُبع التقرير', 'success', 4000);
   await refreshData();
   loadDailyPanel();
 }
