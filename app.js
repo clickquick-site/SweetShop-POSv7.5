@@ -622,7 +622,7 @@ async function _smartPrint(html, printerKey, labelSize, printW, printH) {
     }
   } catch(e) { /* السيرفر غير متاح — نستخدم المتصفح */ }
   // Fallback: نافذة المتصفح
-  _thermalPrint(html, printW, printH);
+  _silentPrint(html);
 }
 
 function _thermalPrint(html, printW, printH) {
