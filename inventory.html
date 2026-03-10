@@ -119,10 +119,6 @@
             <input class="input-field" type="number" id="productQty" placeholder="0" min="0"/>
           </div>
           <div class="input-group">
-            <label class="input-label">🔔 حد التنبيه (نفاذ)</label>
-            <input class="input-field" type="number" id="productMinStock" placeholder="5" min="0"/>
-          </div>
-          <div class="input-group">
             <label class="input-label"><span data-i18n="invLabelExpiry">تاريخ نهاية الصلاحية</span></label>
             <input class="input-field" type="date" id="productExpiry"/>
           </div>
@@ -175,6 +171,7 @@
       </div>
     </div>
   </div>
+</div>
 
     <!-- TAB: Stock Adjustment -->
     <div class="tab-content" id="tab-adjust">
@@ -242,8 +239,6 @@
       </div>
     </div>
 
-</div><!-- /page-wrapper -->
-
 <!-- Modal: Quick Adjust from product row -->
 <div class="modal-overlay" id="adjustModal">
   <div class="modal" style="max-width:420px;">
@@ -261,7 +256,7 @@
 <div class="modal-overlay" id="importConfirmModal">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title"><span data-i18n="invImportConfirm">تأكيد الاستيراد</span></span>
+      <span class="modal-title"><span data-i18n="invImportConfirm">تأكيد الاستيراد</span>
       <button class="modal-close" onclick="closeModal('importConfirmModal')">✕</button>
     </div>
     <div id="importConflicts"></div>
@@ -296,7 +291,6 @@
       <a class="nav-item" href="customers.html"><span class="nav-label" data-i18n="navCustomers">الزبائن</span></a>
       <a class="nav-item" href="reports.html" data-role="admin,manager"><span class="nav-label" data-i18n="navReports">إدارة الأعمال</span></a>
       <a class="nav-item" href="suppliers.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSuppliers">الموردون</span></a>
-      <a class="nav-item" href="expenses.html" data-role="admin,manager"><span class="nav-label">المصاريف والعمال</span></a>
       <span class="nav-group-label" data-i18n="navGroupSystem">النظام</span>
       <a class="nav-item" href="users.html" data-role="admin"><span class="nav-label" data-i18n="navUsers">المستخدمون</span></a>
       <a class="nav-item" href="settings.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSettings">الإعدادات</span></a>
@@ -339,7 +333,7 @@ async function init() {
     if (e.key === 'Enter') { e.preventDefault(); filterProducts(); }
   });
   document.getElementById('familyInput')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); addFamily(); }
+    if (e.key === 'Enter') { e.preventDefault(); saveFamily(); }
   });
 }
 
@@ -449,7 +443,6 @@ async function saveProduct() {
     buyPrice: parseFloat(document.getElementById('productBuyPrice').value) || 0,
     sellPrice: parseFloat(document.getElementById('productSellPrice').value) || 0,
     quantity: parseInt(document.getElementById('productQty').value) || 0,
-    minStock: parseInt(document.getElementById('productMinStock').value) || 5,
     expiryDate: document.getElementById('productExpiry').value || null,
     createdAt: new Date().toISOString()
   };
@@ -483,23 +476,13 @@ async function editProduct(id) {
   document.getElementById('productBuyPrice').value = p.buyPrice || '';
   document.getElementById('productSellPrice').value = p.sellPrice || '';
   document.getElementById('productQty').value = p.quantity || '';
-  document.getElementById('productMinStock').value = p.minStock || 5;
   document.getElementById('productExpiry').value = p.expiryDate || '';
   document.getElementById('productFamily').value = p.familyId || '';
   document.getElementById('formTitle').textContent = '✏️ تعديل المنتج';
 }
 
 async function deleteProduct(id) {
-  // التحقق من وجود مبيعات مرتبطة بهذا المنتج
-  const allItems = await dbGetAll('saleItems');
-  const linked = allItems.filter(i => i.productId === id);
-  if (linked && linked.length > 0) {
-    if (!await customConfirmAsync(
-      `⚠️ هذا المنتج مرتبط بـ ${linked.length} عملية بيع سابقة.\nالحذف سيُبقي السجلات لكن بدون بيانات المنتج.\nهل تريد المتابعة؟`
-    )) return;
-  } else {
-    if (!await customConfirmAsync('هل تريد حذف هذا المنتج نهائياً؟')) return;
-  }
+  if (!await customConfirmAsync('هل تريد حذف هذا المنتج نهائياً؟')) return;
   await dbDelete('products', id);
   toast('تم حذف المنتج', 'success');
   loadProducts();
