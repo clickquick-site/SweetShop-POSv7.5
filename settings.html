@@ -352,37 +352,9 @@
               <label class="input-label">🖨️ طابعة الباركود</label>
               <div class="printer-card" id="printerBarcodeCard">
                 <div class="printer-card-title">🖨️ <span id="printerBarcodeName">الطابعة الافتراضية</span></div>
-                <div class="printer-card-desc">اضغط "بحث" لطباعة اختبارية ثم اختر الطابعة من نافذة الطباعة</div>
+                <div class="printer-card-desc">اضغط على الزر لفتح إعدادات الطابعة</div>
               </div>
-              <div style="display:flex;gap:8px;margin-top:6px;">
-                <button class="btn btn-secondary btn-sm" onclick="openPrinterDialog('barcode')">🔍 بحث وتجربة</button>
-                <button class="btn btn-ghost btn-sm" onclick="clearPrinterName('barcode')" title="مسح الاسم المحفوظ">✕ مسح</button>
-              </div>
-            </div>
-
-            <div class="section-divider"></div>
-
-            <div class="input-group">
-              <label class="input-label">📐 حجم الملصق (مم)</label>
-              <select class="select-field" id="barcodeLabelSize" onchange="updateBarcodePreview()">
-                <option value="58x38">58 × 38 مم — شائع (Zebra, Citizen)</option>
-                <option value="58x30">58 × 30 مم</option>
-                <option value="58x20">58 × 20 مم — ضيق</option>
-                <option value="40x30">40 × 30 مم — مربع صغير</option>
-                <option value="40x25">40 × 25 مم</option>
-                <option value="38x25">38 × 25 مم — صغير</option>
-                <option value="30x20">30 × 20 مم — جواهر</option>
-              </select>
-            </div>
-
-            <div class="input-group">
-              <label class="input-label">🔤 حجم الخط</label>
-              <div style="display:flex;align-items:center;gap:10px;">
-                <button class="btn btn-sm btn-secondary" onclick="changeBcFontSize(-1)" style="min-width:36px;font-size:1.1rem;font-weight:900;">−</button>
-                <span id="bcFontSizeDisplay" style="font-size:1.1rem;font-weight:900;color:var(--primary-light);min-width:30px;text-align:center;">12</span>
-                <button class="btn btn-sm btn-primary"   onclick="changeBcFontSize(+1)" style="min-width:36px;font-size:1.1rem;font-weight:900;">+</button>
-                <span style="font-size:0.78rem;color:var(--text-secondary);">pt (6–24)</span>
-              </div>
+              <button class="btn btn-secondary btn-sm" onclick="openPrinterDialog('barcode')" title="فتح إعدادات الطابعة">🖥️ اختيار الطابعة</button>
             </div>
 
             <div class="section-divider"></div>
@@ -830,7 +802,6 @@
       <a class="nav-item" href="customers.html"><span class="nav-label" data-i18n="navCustomers">الزبائن</span></a>
       <a class="nav-item" href="reports.html" data-role="admin,manager"><span class="nav-label" data-i18n="navReports">إدارة الأعمال</span></a>
       <a class="nav-item" href="suppliers.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSuppliers">الموردون</span></a>
-      <a class="nav-item" href="expenses.html" data-role="admin,manager"><span class="nav-label">المصاريف والعمال</span></a>
       <span class="nav-group-label" data-i18n="navGroupSystem">النظام</span>
       <a class="nav-item" href="users.html" data-role="admin"><span class="nav-label" data-i18n="navUsers">المستخدمون</span></a>
       <a class="nav-item active" href="settings.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSettings">الإعدادات</span></a>
@@ -1155,85 +1126,51 @@ function applyFontPreview(fontName) {
 // ═══════════════════════════════════════════════════
 // PRINTER
 // ═══════════════════════════════════════════════════
-async function openPrinterDialog(type) {
+function openPrinterDialog(type) {
   const paperSize = document.getElementById('paperSize')?.value || '80mm';
   const widthMap  = {'58mm':'54mm','80mm':'76mm','A5':'148mm','A4':'210mm'};
+  const pw = type === 'invoice' ? (widthMap[paperSize] || '76mm') : '60mm';
   const isInvoice = type === 'invoice';
-  const pw = isInvoice ? (widthMap[paperSize] || '76mm') : '60mm';
-
-  // اقرأ الاسم المحفوظ مسبقاً لعرضه كـ placeholder
-  const savedName = (await getSetting(isInvoice ? 'printerInvoice' : 'printerBarcode')) || '';
 
   const pageContent = isInvoice
     ? `<div style="text-align:center;padding:15px;font-family:Arial;">
-        <h2>طباعة تجريبية — فاتورة</h2><hr/>
-        <p>POS DZ — فاتورة تجريبية</p>
+        <h2>طباعة تجريبية — فاتورة</h2>
+        <p>هذه طباعة اختبارية<br>اختر الطابعة المناسبة للفواتير</p>
+        <hr/><p style="font-size:13px;font-weight:bold;">POS DZ — فاتورة تجريبية</p>
         <p>المنتج × الكمية = المجموع</p>
         <p style="font-size:18px;font-weight:900;">الإجمالي: 500.00 دج</p>
        </div>`
-    : `<div style="text-align:center;padding:8px;font-family:Arial;width:56mm;">
+    : `<div style="text-align:center;padding:10px;font-family:Arial;width:58mm;">
         <p style="font-weight:900;font-size:13px;">POS DZ</p>
-        <p style="font-weight:900;font-size:12px;">سكر — 1كغ</p>
-        <p style="font-family:monospace;font-size:10px;letter-spacing:2px;">6191234567890</p>
+        <p style="font-weight:900;">سكر 1كغ</p>
+        <p style="font-family:monospace;">6191234567890</p>
         <p style="font-size:16px;font-weight:900;">150.00 دج</p>
        </div>`;
 
   const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">
-    <style>@page{size:${pw} auto;margin:4mm;}body{font-family:Arial;color:#000;background:#fff;}@media print{*{-webkit-print-color-adjust:exact;}}</style>
-    </head><body>${pageContent}</body></html>`;
+    <style>
+      @page { size:${pw} auto; margin:4mm; }
+      body { font-family:Arial; color:#000; background:#fff; }
+      @media print { * { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+    </style></head><body>${pageContent}</body></html>`;
 
-  // فتح نافذة الطباعة — بعد انتهائها يظهر dialog لتأكيد اسم الطابعة
-  const w = window.open('', '_blank', 'width=420,height=400,scrollbars=no,toolbar=no,menubar=no');
-  if (!w) { toast('⚠️ أجِز النوافذ المنبثقة ثم أعد المحاولة', 'warning'); return; }
-  w.document.open(); w.document.write(html); w.document.close();
+  _silentPrint(html);
 
-  let _nameAsked = false;
-  const askName = async () => {
-    if (_nameAsked) return;
-    _nameAsked = true;
-    try { w.close(); } catch(e) {}
+  // Ask user to name the chosen printer — custom dialog instead of prompt
+  setTimeout(async () => {
     const label = isInvoice ? 'اكتب اسم طابعة الفواتير التي اخترتها:' : 'اكتب اسم طابعة الباركود التي اخترتها:';
-    const chosen = await _inputDialog(label, savedName || 'الطابعة الافتراضية');
+    const chosen = await _inputDialog(label, 'الطابعة الافتراضية');
     if (chosen && chosen.trim()) {
       const nameEl = document.getElementById(isInvoice ? 'printerInvoiceName' : 'printerBarcodeName');
       if (nameEl) nameEl.textContent = chosen.trim();
       const cardEl = document.getElementById(isInvoice ? 'printerInvoiceCard' : 'printerBarcodeCard');
       if (cardEl) cardEl.classList.add('selected');
-      await setSetting(isInvoice ? 'printerInvoice' : 'printerBarcode', chosen.trim());
-      toast(`✅ تم حفظ اسم الطابعة: ${chosen.trim()}`, 'success');
     }
-  };
-
-  w.onload = function() {
-    setTimeout(() => {
-      try { w.focus(); w.print(); } catch(e) {}
-      w.onafterprint = askName;
-      // fallback إذا لم يُطلق onafterprint
-      setTimeout(askName, 9000);
-    }, 350);
-  };
-  setTimeout(() => { if (w && !w.closed) { try { w.focus(); w.print(); } catch(e) {} } }, 1800);
+  }, 500);
 }
 
-function clearPrinterName(type) {
-  const isInvoice = type === 'invoice';
-  const nameEl = document.getElementById(isInvoice ? 'printerInvoiceName' : 'printerBarcodeName');
-  if (nameEl) nameEl.textContent = 'الطابعة الافتراضية';
-  const cardEl = document.getElementById(isInvoice ? 'printerInvoiceCard' : 'printerBarcodeCard');
-  if (cardEl) cardEl.classList.remove('selected');
-  setSetting(isInvoice ? 'printerInvoice' : 'printerBarcode', '');
-  toast('تم مسح اسم الطابعة', 'info');
-}
-
-function testPrintInvoice() { openPrinterDialog('invoice'); }
-
-// حجم خط الباركود +/-
-let _bcFontSize = 12;
-function changeBcFontSize(delta) {
-  _bcFontSize = Math.max(6, Math.min(24, _bcFontSize + delta));
-  const el = document.getElementById('bcFontSizeDisplay');
-  if (el) el.textContent = _bcFontSize;
-  updateBarcodePreview();
+function testPrintInvoice() {
+  openPrinterDialog('invoice');
 }
 
 // ═══════════════════════════════════════════════════
@@ -1253,14 +1190,14 @@ async function updateInvoicePreview() {
   const showWelcome = document.getElementById('printWelcome')?.checked;
   const showBarcode = document.getElementById('printBarcode')?.checked;
 
-  // عرض الأحرف حسب حجم الورق — يطابق printInvoice
+  // Line width per paper
   const lw = {'58mm':30,'80mm':40,'A5':54,'A4':68}[ps] || 40;
   const H  = '━'.repeat(lw);
   const L  = '─'.repeat(lw);
 
-  const now  = new Date();
-  const dStr = now.getFullYear()+'/'+(now.getMonth()<9?'0':'')+(now.getMonth()+1)+'/'+(now.getDate()<10?'0':'')+now.getDate();
-  const tStr = (now.getHours()<10?'0':'')+now.getHours()+':'+(now.getMinutes()<10?'0':'')+now.getMinutes();
+  const now   = new Date();
+  const dStr  = now.toLocaleDateString('ar-DZ');
+  const tStr  = now.toLocaleTimeString('ar-DZ',{hour:'2-digit',minute:'2-digit'});
 
   const ctr = (txt) => {
     const pad = Math.max(0, Math.floor((lw - txt.length) / 2));
@@ -1268,32 +1205,25 @@ async function updateInvoicePreview() {
   };
 
   const lines = [];
-  lines.push(`فاتورة: #001`);
-  lines.push(`${dStr}  ${tStr}`);
-  lines.push(`البائع: ADMIN`);
+  lines.push(`فاتورة: #001        ${dStr} ${tStr}`);
   lines.push(H);
-  if (showName)  lines.push(ctr(sName));
-  if (showPhone) lines.push(ctr('📞 ' + sPhone));
-  if (showAddr)  lines.push(ctr('📍 ' + sAddr));
-  if (showName||showPhone||showAddr) lines.push(H);
-  lines.push('الزبون: أحمد بن عمر');
-  lines.push(H);
-  lines.push('المنتج          ك    السعر   المجموع');
+  if (showName)                    lines.push(ctr(sName));
+  if (showPhone)                   lines.push(ctr('📞 ' + sPhone));
+  if (showAddr)                    lines.push(ctr('📍 ' + sAddr));
+  if (showName||showPhone||showAddr) lines.push(L);
+  lines.push('المنتج            ك   السعر  المجموع');
   lines.push(L);
-  lines.push('سكر — 1كغ       2   150.00   300.00');
-  lines.push('فرينة سيم 5كغ   1   450.00   450.00');
-  lines.push('زيت عائلة       3    95.00   285.00');
+  lines.push('سكر 1كغ           2   150.00  300.00');
+  lines.push('فرينة              1   200.00  200.00');
+  lines.push('زيت                3    95.00  285.00');
   lines.push(H);
-  lines.push(`الإجمالي: 1035.00 ${cur}`);
-  lines.push(`المدفوع: 1100.00 ${cur}`);
-  lines.push(`الباقي: 65.00 ${cur}`);
+  lines.push(`الإجمالي:               785.00 ${cur}`);
   lines.push(H);
   if (showWelcome && sWelc) lines.push(ctr(sWelc));
-  if (showBarcode) lines.push(ctr('||||| #001 |||||'));
+  if (showBarcode)          lines.push(ctr('||||| #001 |||||'));
 
   document.getElementById('invoicePreview').textContent = lines.join('\n');
 }
-
 
 // ═══════════════════════════════════════════════════
 // LIVE BARCODE LABEL PREVIEW
@@ -1312,9 +1242,9 @@ async function updateBarcodePreview() {
   const pn = document.getElementById('bpProductName');
   const pr = document.getElementById('bpPrice');
 
-  if (sn) { sn.textContent = showStore ? storeName : ''; sn.style.fontFamily = font; sn.style.fontSize = Math.max(6,_bcFontSize-3)+'px'; }
-  if (pn) { pn.style.display = showName ? '' : 'none'; pn.style.fontFamily = font; pn.style.fontSize = _bcFontSize+'px'; }
-  if (pr) { pr.style.display = showPrice ? '' : 'none'; pr.textContent = `150.00 ${currency}`; pr.style.fontFamily = font; pr.style.fontSize = Math.max(8,_bcFontSize+3)+'px'; }
+  if (sn) { sn.textContent = showStore ? storeName : ''; sn.style.fontFamily = font; }
+  if (pn) { pn.style.display = showName ? '' : 'none'; pn.style.fontFamily = font; }
+  if (pr) { pr.style.display = showPrice ? '' : 'none'; pr.textContent = `150.00 ${currency}`; pr.style.fontFamily = font; }
 
   // Render barcode visuals based on type
   const barsEl = document.getElementById('bpBars');
@@ -1445,7 +1375,7 @@ async function loadAllSettings() {
     'invoiceNumber','paperSize',
     'printLogo','printName','printPhone','printWelcome','printAddress','printBarcode',
     'barcodeShowStore','barcodeShowName','barcodeShowPrice',
-    'barcodeType','barcodeFont','barcodeLabelSize','autoBackup',
+    'barcodeType','barcodeFont','autoBackup',
     'notifEnabled','notifExpiry','notifLowStock','notifDebt30','notifStorage',
     'notifOutStock','notifTechError','notifLogin','notifPwdChange',
     'notifInApp','notifSMS','notifEmail',
@@ -1498,11 +1428,6 @@ async function loadAllSettings() {
     const lp = document.getElementById('logoPreview');
     if (lp) { lp.src = logo; lp.style.display = 'block'; }
   }
-
-  // Barcode font size
-  _bcFontSize = parseInt(await getSetting('barcodeFontSize')) || 12;
-  const bcFsEl = document.getElementById('bcFontSizeDisplay');
-  if (bcFsEl) bcFsEl.textContent = _bcFontSize;
 
   // Printer names
   const invP = await getSetting('printerInvoice');
@@ -1570,10 +1495,8 @@ async function saveSettings(section) {
     await setSetting('barcodeShowPrice', document.getElementById('barcodeShowPrice').checked ? '1':'0');
     await setSetting('barcodeType',      document.getElementById('barcodeType').value);
     await setSetting('barcodeFont',      document.getElementById('barcodeFont').value);
-    await setSetting('barcodeLabelSize', document.getElementById('barcodeLabelSize')?.value || '58x38');
-    await setSetting('barcodeFontSize',  String(_bcFontSize));
     const barName = document.getElementById('printerBarcodeName')?.textContent;
-    if (barName && barName !== 'الطابعة الافتراضية') await setSetting('printerBarcode', barName);
+    if (barName) await setSetting('printerBarcode', barName);
   }
   if (section === 'system') {
     await setSetting('autoBackup', document.getElementById('autoBackup').checked ? '1':'0');
