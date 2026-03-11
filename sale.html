@@ -397,6 +397,14 @@
         style="flex-shrink:0;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:0.78rem;padding:5px 10px;border-radius:6px;white-space:nowrap;">
         <i class="fa-solid fa-magnifying-glass-dollar"></i> ديون
       </button>
+      <!-- ══ زر F6 طوارئ ══ -->
+      <button onclick="openF6Modal()" id="f6Btn"
+        title="إضافة منتج طارئ — F6"
+        style="flex-shrink:0;background:linear-gradient(135deg,#0891B2,#0E7490);border:2px solid #22D3EE;color:#fff;font-size:0.82rem;font-weight:900;padding:7px 14px;border-radius:8px;white-space:nowrap;display:flex;align-items:center;gap:6px;box-shadow:0 0 12px rgba(34,211,238,0.3);cursor:pointer;">
+        <span style="background:rgba(255,255,255,0.2);border-radius:4px;padding:1px 6px;font-size:0.72rem;font-family:monospace;font-weight:900;">F6</span>
+        <i class="fa-solid fa-bolt"></i>
+        طارئ
+      </button>
     </div>
 
     <!-- مودال الديون السريعة -->
@@ -558,7 +566,6 @@
     <div style="display:flex;gap:4px;align-items:center;">
       <button onclick="setVKBLang('ar')" id="vkbLangAr" style="font-size:0.65rem;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.3);color:#fff;cursor:pointer;font-family:'Cairo',sans-serif;">ع</button>
       <button onclick="setVKBLang('fr')" id="vkbLangFr" style="font-size:0.65rem;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.3);background:transparent;color:#fff;cursor:pointer;">FR</button>
-      <button onclick="setVKBLang('en')" id="vkbLangEn" style="font-size:0.65rem;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.3);background:transparent;color:#fff;cursor:pointer;">EN</button>
       <button class="vkb-panel-close" onclick="toggleVKB()"><i class="fa-solid fa-xmark"></i></button>
     </div>
   </div>
@@ -593,7 +600,7 @@
       <a class="nav-item" href="customers.html"><span class="nav-label" data-i18n="navCustomers">الزبائن</span></a>
       <a class="nav-item" href="reports.html" data-role="admin,manager"><span class="nav-label" data-i18n="navReports">إدارة الأعمال</span></a>
       <a class="nav-item" href="suppliers.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSuppliers">الموردون</span></a>
-      <a class="nav-item" href="expenses.html" data-role="admin,manager"><span class="nav-label">المصاريف والعمال</span></a>
+      <a class="nav-item" href="expenses.html" data-role="admin,manager"><span class="nav-label" data-i18n="navExpenses">المصاريف والعمال</span></a>
       <span class="nav-group-label" data-i18n="navGroupSystem">النظام</span>
       <a class="nav-item" href="users.html" data-role="admin"><span class="nav-label" data-i18n="navUsers">المستخدمون</span></a>
       <a class="nav-item" href="settings.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSettings">الإعدادات</span></a>
@@ -601,12 +608,13 @@
       <div class="nav-item danger" onclick="doLogout()"><span class="nav-label" data-i18n="navLogout">خروج</span></div>
     </nav>
   <div class="sidebar-footer">
-    <span class="app-version" id="sidebarVersion">v6.0.0</span>
+    <span class="app-version" id="sidebarVersion">v7.0.0</span>
     <span>POS DZ © 2026</span>
   </div>
 </div>
 
 <div id="toast-container"></div>
+<script src="print.js"></script>
 <script src="app.js"></script>
 <script src="sync.js"></script>
 <script>
@@ -1681,6 +1689,219 @@ function doLogout(){
 }
 
 init();
+
+// ══════════════════════════════════════════════════════════════
+//  F6 — منتج طارئ
+// ══════════════════════════════════════════════════════════════
+async function openF6Modal() {
+  // تحميل العائلات في الـ select
+  const families = await dbGetAll('families');
+  const sel = document.getElementById('f6FamilySelect');
+  sel.innerHTML = '<option value="">— بدون عائلة —</option>';
+  families.forEach(f => {
+    const o = document.createElement('option');
+    o.value = f.id; o.textContent = f.name;
+    sel.appendChild(o);
+  });
+  // تفريغ الحقول
+  ['f6Name','f6Size','f6Unit','f6BuyPrice','f6SellPrice','f6Qty'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = id === 'f6Unit' ? 'قطعة' : id === 'f6Qty' ? '1' : '';
+  });
+  document.getElementById('f6FamilyText').value = '';
+  document.getElementById('f6FamilyMode').value = 'select';
+  _f6ToggleFamilyMode('select');
+  openModal('f6Modal');
+  setTimeout(() => document.getElementById('f6Name')?.focus(), 120);
+}
+
+function _f6ToggleFamilyMode(mode) {
+  document.getElementById('f6FamilyMode').value = mode;
+  document.getElementById('f6FamilySelectWrap').style.display = mode === 'select' ? '' : 'none';
+  document.getElementById('f6FamilyTextWrap').style.display  = mode === 'text'   ? '' : 'none';
+}
+
+async function confirmF6(saveToInventory) {
+  const name = document.getElementById('f6Name').value.trim();
+  if (!name) { toast('اسم المنتج مطلوب ⚠️', 'warning'); return; }
+
+  const sellPrice = parseFloat(document.getElementById('f6SellPrice').value) || 0;
+  if (!sellPrice) { toast('سعر البيع مطلوب ⚠️', 'warning'); return; }
+
+  const buyPrice = parseFloat(document.getElementById('f6BuyPrice').value) || 0;
+  const qty      = parseInt(document.getElementById('f6Qty').value)        || 1;
+  const size     = document.getElementById('f6Size').value.trim();
+  const unit     = document.getElementById('f6Unit').value || 'قطعة';
+  const mode     = document.getElementById('f6FamilyMode').value;
+
+  let familyId = null;
+  if (mode === 'select') {
+    familyId = parseInt(document.getElementById('f6FamilySelect').value) || null;
+  } else {
+    const familyText = document.getElementById('f6FamilyText').value.trim();
+    if (familyText) {
+      // إنشاء عائلة جديدة إن لم تكن موجودة
+      const families = await dbGetAll('families');
+      const existing = families.find(f => f.name === familyText);
+      if (existing) { familyId = existing.id; }
+      else { familyId = await dbAdd('families', { name: familyText, createdAt: new Date().toISOString() }); }
+    }
+  }
+
+  const productName = name + (size ? ' ' + size : '');
+
+  if (saveToInventory) {
+    // فحص تكرار ثلاثي قبل الحفظ
+    const allP = await dbGetAll('products');
+    const dup = allP.find(p =>
+      p.name === name &&
+      (p.familyId || null) === familyId &&
+      (p.size || '') === size &&
+      (p.unit || '') === unit
+    );
+    if (dup) {
+      // المنتج موجود — أضف للسلة مباشرة
+      toast(`المنتج موجود في المخزون — تمت الإضافة للسلة`, 'info');
+      _addF6ToCart({ id: dup.id, name: productName, sellPrice: dup.sellPrice, buyPrice: dup.buyPrice }, qty, sellPrice);
+      closeModal('f6Modal');
+      return;
+    }
+    // حفظ جديد في المخزون
+    const newId = await dbAdd('products', {
+      familyId, name, size, unit, buyPrice, sellPrice,
+      quantity: qty, minStock: 5, barcode: '', expiryDate: null,
+      createdAt: new Date().toISOString()
+    });
+    toast(`✅ تم حفظ "${productName}" في المخزون`, 'success');
+    _addF6ToCart({ id: newId, name: productName, sellPrice, buyPrice }, qty, sellPrice);
+  } else {
+    // إضافة للسلة فقط بدون حفظ
+    _addF6ToCart({ id: null, name: productName, sellPrice, buyPrice }, qty, sellPrice);
+    toast(`⚡ تمت إضافة "${productName}" للسلة (مؤقت)`, 'info');
+  }
+  closeModal('f6Modal');
+}
+
+function _addF6ToCart(product, qty, overridePrice) {
+  // نستخدم addToCart إن كانت موجودة أو نضيف للـ cart مباشرة
+  if (typeof cart !== 'undefined') {
+    // فحص إن كان المنتج موجود في السلة
+    const existing = cart.find(i => i.name === product.name && i.unitPrice === overridePrice);
+    if (existing) {
+      existing.quantity += qty;
+      existing.total = existing.quantity * existing.unitPrice;
+    } else {
+      cart.push({
+        productId: product.id || -Date.now(),
+        name: product.name,
+        quantity: qty,
+        unitPrice: overridePrice || product.sellPrice,
+        buyPrice: product.buyPrice || 0,
+        total: qty * (overridePrice || product.sellPrice),
+        isEmergency: !product.id
+      });
+    }
+    if (typeof renderCart === 'function') renderCart();
+    if (typeof playSound === 'function') playSound('add');
+  }
+}
+
+// F6 keyboard shortcut
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'F6') {
+    e.preventDefault();
+    openF6Modal();
+  }
+});
 </script>
 </body>
+
+<!-- ══ F6 Modal — منتج طارئ ══ -->
+<div class="modal-overlay" id="f6Modal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header" style="border-bottom:2px solid #22D3EE;">
+      <span class="modal-title" style="color:#22D3EE;">
+        <span style="background:rgba(34,211,238,0.15);border:1px solid #22D3EE;border-radius:5px;padding:1px 8px;font-size:0.78rem;font-family:monospace;margin-left:6px;">F6</span>
+        <i class="fa-solid fa-bolt" style="color:#22D3EE;"></i>
+        إضافة منتج طارئ
+      </span>
+      <button class="modal-close" onclick="closeModal('f6Modal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div style="padding:4px 0 14px;">
+      <!-- العائلة -->
+      <div class="input-group">
+        <label class="input-label"><i class="fa-solid fa-layer-group"></i> العائلة</label>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+          <button onclick="_f6ToggleFamilyMode('select')" style="padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-secondary);cursor:pointer;font-family:var(--font-main);font-size:0.8rem;">اختر موجودة</button>
+          <button onclick="_f6ToggleFamilyMode('text')"   style="padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-secondary);cursor:pointer;font-family:var(--font-main);font-size:0.8rem;">اكتب جديدة</button>
+        </div>
+        <input type="hidden" id="f6FamilyMode" value="select"/>
+        <div id="f6FamilySelectWrap">
+          <select id="f6FamilySelect" class="select-field"></select>
+        </div>
+        <div id="f6FamilyTextWrap" style="display:none;">
+          <input type="text" id="f6FamilyText" class="input-field" placeholder="اسم العائلة الجديدة..."/>
+        </div>
+      </div>
+
+      <!-- اسم المنتج -->
+      <div class="input-group">
+        <label class="input-label"><i class="fa-solid fa-box"></i> اسم المنتج <span style="color:var(--danger);">*</span></label>
+        <input type="text" id="f6Name" class="input-field" placeholder="مثال: سكر سيفيتال" autocomplete="off"/>
+      </div>
+
+      <!-- الحجم + الوحدة -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="input-group">
+          <label class="input-label"><i class="fa-solid fa-ruler"></i> الحجم / المقاس</label>
+          <input type="text" id="f6Size" class="input-field" placeholder="مثال: 1كلغ، 5L"/>
+        </div>
+        <div class="input-group">
+          <label class="input-label"><i class="fa-solid fa-tag"></i> الوحدة</label>
+          <select id="f6Unit" class="select-field">
+            <option>قطعة</option><option>كلغ</option><option>لتر</option>
+            <option>علبة</option><option>كرتون</option><option>حزمة</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- الأسعار + الكمية -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div class="input-group">
+          <label class="input-label"><i class="fa-solid fa-arrow-down"></i> سعر الشراء</label>
+          <input type="number" id="f6BuyPrice" class="input-field" placeholder="0" min="0" step="any"/>
+        </div>
+        <div class="input-group">
+          <label class="input-label"><i class="fa-solid fa-arrow-up" style="color:var(--success);"></i> سعر البيع <span style="color:var(--danger);">*</span></label>
+          <input type="number" id="f6SellPrice" class="input-field" placeholder="0" min="0" step="any"/>
+        </div>
+        <div class="input-group">
+          <label class="input-label"><i class="fa-solid fa-hashtag"></i> الكمية</label>
+          <input type="number" id="f6Qty" class="input-field" value="1" min="1"/>
+        </div>
+      </div>
+
+      <!-- تنبيه -->
+      <div style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.25);border-radius:8px;padding:10px 14px;font-size:0.8rem;color:var(--text-secondary);margin-top:4px;">
+        <i class="fa-solid fa-circle-info" style="color:#22D3EE;margin-left:6px;"></i>
+        <strong style="color:#22D3EE;">حفظ في المخزون</strong> يضيف المنتج للمخزون ويضعه في السلة. <strong>إضافة للسلة فقط</strong> للاستخدام الفوري دون حفظ.
+      </div>
+    </div>
+
+    <div class="modal-footer" style="border-top:1px solid var(--border);">
+      <button class="btn btn-secondary" onclick="closeModal('f6Modal')">
+        <i class="fa-solid fa-xmark"></i> إلغاء
+      </button>
+      <button class="btn" onclick="confirmF6(false)"
+        style="background:linear-gradient(135deg,#6B7280,#4B5563);color:#fff;">
+        <i class="fa-solid fa-cart-plus"></i> سلة فقط
+      </button>
+      <button class="btn" onclick="confirmF6(true)"
+        style="background:linear-gradient(135deg,#0891B2,#0E7490);border:1px solid #22D3EE;color:#fff;">
+        <i class="fa-solid fa-floppy-disk"></i> حفظ + سلة
+      </button>
+    </div>
+  </div>
+</div>
 </html>
