@@ -54,7 +54,7 @@
     <div class="tabs-bar">
       <button class="tab-btn active" onclick="switchTab('all')"><span data-i18n="invTabAll">كل المنتجات</span></button>
       <button class="tab-btn" onclick="switchTab('add')"><span data-i18n="invAddProduct">إضافة منتج</span></button>
-      <button class="tab-btn" onclick="switchTab('adjust')">🔧 تعديل المخزون</button>
+      <button class="tab-btn" onclick="switchTab('adjust')" data-i18n="invTabAdjust">🔧 تعديل المخزون</button>
       <button class="tab-btn" onclick="switchTab('families')"><span data-i18n="invTabFamilies">العائلات</span></button>
       <button class="tab-btn" onclick="switchTab('import')"><span data-i18n="invTabImport">استيراد / تصدير</span></button>
     </div>
@@ -296,16 +296,17 @@
       <a class="nav-item" href="customers.html"><span class="nav-label" data-i18n="navCustomers">الزبائن</span></a>
       <a class="nav-item" href="reports.html" data-role="admin,manager"><span class="nav-label" data-i18n="navReports">إدارة الأعمال</span></a>
       <a class="nav-item" href="suppliers.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSuppliers">الموردون</span></a>
-      <a class="nav-item" href="expenses.html" data-role="admin,manager"><span class="nav-label">المصاريف والعمال</span></a>
+      <a class="nav-item" href="expenses.html" data-role="admin,manager"><span class="nav-label" data-i18n="navExpenses">المصاريف والعمال</span></a>
       <span class="nav-group-label" data-i18n="navGroupSystem">النظام</span>
       <a class="nav-item" href="users.html" data-role="admin"><span class="nav-label" data-i18n="navUsers">المستخدمون</span></a>
       <a class="nav-item" href="settings.html" data-role="admin,manager"><span class="nav-label" data-i18n="navSettings">الإعدادات</span></a>
 
       <div class="nav-item danger" onclick="doLogout()"><span class="nav-label" data-i18n="navLogout">خروج</span></div>
     </nav>
-    <div class="sidebar-footer"><span id="sidebarVersion">v6.0.0</span><span>POS DZ 2026</span></div>
+    <div class="sidebar-footer"><span id="sidebarVersion">v7.0.0</span>&nbsp;&nbsp;<span>POS DZ 2026</span></div>
   </div>
 <div id="toast-container"></div>
+<script src="print.js"></script>
 <script src="app.js"></script>
 <script src="sync.js"></script>
 <script>
@@ -410,7 +411,7 @@ function renderProducts(products) {
       <td>${expiryInfo || '—'}</td>
       <td>${alertBadge}</td>
       <td class="actions">
-        <button class="btn btn-sm btn-secondary" title="طباعة ملصق الباركود" onclick="printBarcodeLabel(${JSON.stringify(p).replace(/"/g,'&quot;')})">🖨️</button>
+        <button class="btn btn-sm btn-secondary" title="طباعة ملصق الباركود" onclick="askBarcodePrint(${JSON.stringify(p).replace(/"/g,'&quot;')})">🖨️</button>
         <button class="btn btn-sm btn-warning"   title="تعديل الكمية"        onclick="openAdjustModal(${p.id})">🔧</button>
         <button class="btn btn-sm btn-primary"   title="تعديل المنتج"        onclick="editProduct(${p.id})">✏️</button>
         <button class="btn btn-sm btn-danger"    title="حذف المنتج"          onclick="deleteProduct(${p.id})">🗑️</button>
@@ -431,21 +432,31 @@ async function saveProduct() {
   const name = document.getElementById('productName').value.trim();
   if (!name) { toast('اسم المنتج مطلوب', 'warning'); return; }
 
-  // Check duplicate name
+  const familyId = parseInt(document.getElementById('productFamily').value) || null;
+  const size     = document.getElementById('productSize').value.trim();
+  const unit     = document.getElementById('productUnit').value;
+
+  // ══ فحص التكرار الثلاثي: العائلة + الاسم + الحجم/الوحدة ══
   const all = await dbGetAll('products');
-  const dup = all.find(p => p.name === name && p.id !== parseInt(id));
+  const dup = all.find(p =>
+    p.id !== parseInt(id) &&
+    p.name === name &&
+    (p.familyId || null) === familyId &&
+    (p.size || '') === size &&
+    (p.unit || '') === unit
+  );
   if (dup) {
+    document.getElementById('nameError').textContent =
+      `⚠️ منتج مطابق موجود مسبقاً — (${name}${size?' — '+size:''}) في نفس العائلة والوحدة`;
     document.getElementById('nameError').style.display = 'block';
     return;
   }
   document.getElementById('nameError').style.display = 'none';
-
-  const familyId = parseInt(document.getElementById('productFamily').value) || null;
   const product = {
     familyId, name,
     barcode: document.getElementById('productBarcode').value.trim(),
-    size: document.getElementById('productSize').value.trim(),
-    unit: document.getElementById('productUnit').value,
+    size,
+    unit,
     buyPrice: parseFloat(document.getElementById('productBuyPrice').value) || 0,
     sellPrice: parseFloat(document.getElementById('productSellPrice').value) || 0,
     quantity: parseInt(document.getElementById('productQty').value) || 0,
@@ -469,6 +480,73 @@ function clearProductForm() {
   document.getElementById('productUnit').value = 'قطعة';
   document.getElementById('formTitle').textContent = '➕ إضافة منتج جديد';
   document.getElementById('nameError').style.display = 'none';
+}
+
+// ── طباعة ملصق الباركود مع اختيار عدد النسخ ──────────────────
+function askBarcodePrint(product) {
+  // إزالة modal قديم إن وجد
+  document.getElementById('_bcQtyModal')?.remove();
+
+  const modal = document.createElement('div');
+  modal.id = '_bcQtyModal';
+  modal.style.cssText = `
+    position:fixed;inset:0;z-index:9999;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(0,0,0,0.65);
+  `;
+  modal.innerHTML = `
+    <div style="background:var(--bg-card);border:1.5px solid var(--primary);border-radius:18px;
+                padding:28px 24px;min-width:280px;max-width:340px;width:90%;
+                box-shadow:0 16px 48px rgba(0,0,0,0.5);text-align:center;">
+      <div style="font-size:2rem;margin-bottom:6px;">🖨️</div>
+      <div style="font-weight:900;font-size:1.05rem;color:var(--primary-light);margin-bottom:4px;">
+        ${product.name}${product.size ? ' — ' + product.size : ''}
+      </div>
+      <div style="color:var(--text-secondary);font-size:0.82rem;margin-bottom:18px;">
+        عدد الملصقات المطلوب طباعتها
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:22px;">
+        <button onclick="const i=document.getElementById('_bcQtyInput');i.value=Math.max(1,(parseInt(i.value)||1)-1);"
+          style="width:38px;height:38px;border-radius:10px;border:1px solid var(--border);
+                 background:var(--bg-dark);color:var(--text);font-size:1.3rem;cursor:pointer;font-weight:900;">−</button>
+        <input id="_bcQtyInput" type="number" value="1" min="1" max="999"
+          style="width:80px;height:38px;text-align:center;font-size:1.2rem;font-weight:900;
+                 border-radius:10px;border:1.5px solid var(--primary);
+                 background:var(--bg-dark);color:var(--primary-light);"/>
+        <button onclick="const i=document.getElementById('_bcQtyInput');i.value=Math.min(999,(parseInt(i.value)||1)+1);"
+          style="width:38px;height:38px;border-radius:10px;border:1px solid var(--border);
+                 background:var(--bg-dark);color:var(--text);font-size:1.3rem;cursor:pointer;font-weight:900;">+</button>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button onclick="document.getElementById('_bcQtyModal').remove();"
+          style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
+                 background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-main);">
+          إلغاء
+        </button>
+        <button id="_bcPrintBtn"
+          style="flex:2;padding:10px;border-radius:10px;border:none;
+                 background:var(--primary);color:#fff;font-weight:900;cursor:pointer;
+                 font-family:var(--font-main);font-size:1rem;">
+          🖨️ طباعة
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // إغلاق عند الضغط خارج الـ modal
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  // زر الطباعة
+  document.getElementById('_bcPrintBtn').onclick = async () => {
+    const qty = parseInt(document.getElementById('_bcQtyInput').value) || 1;
+    modal.remove();
+    await printBarcodeLabel(product, qty);
+  };
+
+  // تحديد المحتوى عند التركيز
+  setTimeout(() => document.getElementById('_bcQtyInput')?.select(), 50);
 }
 
 async function editProduct(id) {
