@@ -1,13 +1,13 @@
 // ============================================================
-//  POS DZ — app.js  v6.0.0  |  الجزء 1 من 2
+//  POS DZ — app.js  v7.0.0  |  الجزء 1 من 2
 // ============================================================
 
-const APP_VERSION = { number:'6.0.0', date:'2026-03-02', name:'POS DZ' };
+const APP_VERSION = { number:'7.0.0', date:'2026-03', name:'POS DZ' };
 
 // ══════════════════════════════════════════════════════════════
 //  IndexedDB
 // ══════════════════════════════════════════════════════════════
-const DB_NAME = 'POSDZ_DB', DB_VERSION = 4;
+const DB_NAME = 'POSDZ_DB', DB_VERSION = 5;
 let db = null;
 
 function openDB() {
@@ -33,6 +33,20 @@ function openDB() {
       if (!d.objectStoreNames.contains('syncQueue'))  { const s=d.createObjectStore('syncQueue',{keyPath:'id',autoIncrement:true}); s.createIndex('createdAt','createdAt',{unique:false}); }
       if (!d.objectStoreNames.contains('workers'))    { d.createObjectStore('workers',{keyPath:'id',autoIncrement:true}); }
       if (!d.objectStoreNames.contains('workerPayments')) { const s=d.createObjectStore('workerPayments',{keyPath:'id',autoIncrement:true}); s.createIndex('workerId','workerId',{unique:false}); s.createIndex('date','date',{unique:false}); }
+      // ══ v5: إزالة القيد unique على اسم المنتج — يسمح بنفس الاسم بأحجام مختلفة ══
+      if (e.oldVersion < 5 && e.oldVersion > 0 && d.objectStoreNames.contains('products')) {
+        const tx = e.target.transaction;
+        const oldStore = tx.objectStore('products');
+        const getAllReq = oldStore.getAll();
+        getAllReq.onsuccess = () => {
+          const allProducts = getAllReq.result;
+          d.deleteObjectStore('products');
+          const ns = d.createObjectStore('products', {keyPath:'id', autoIncrement:true});
+          ns.createIndex('name','name',{unique:false});
+          ns.createIndex('barcode','barcode',{unique:false});
+          allProducts.forEach(p => { try { ns.add(p); } catch(err) {} });
+        };
+      }
     };
     req.onsuccess = async (e) => { db=e.target.result; await seedDefaults(); resolve(db); };
     req.onerror   = () => reject(req.error);
@@ -158,7 +172,7 @@ async function resetDailyCounter() { await dbPut('counter',{id:1,number:1,lastRe
 //  Date Helpers
 // ══════════════════════════════════════════════════════════════
 function todayStr() { return new Date().toISOString().split('T')[0]; }
-function _getLocale() { return {ar:'ar-DZ',fr:'fr-FR',en:'en-US'}[localStorage.getItem('posdz_lang')||'ar']||'ar-DZ'; }
+function _getLocale() { return {ar:'ar-DZ',fr:'fr-FR'}[localStorage.getItem('posdz_lang')||'ar']||'ar-DZ'; }
 function formatDate(iso,fmt) {
   if(!iso)return'';
   // إذا كانت القيمة تاريخاً بدون وقت (YYYY-MM-DD) نضيف T00:00 لتجنب UTC off-by-one في UTC+1/+2
@@ -176,7 +190,27 @@ function startOfYear()     { const d=new Date();d.setMonth(0,1);d.setHours(0,0,0
 // Currency
 let _currency='DA';
 async function loadCurrency() { _currency=await getSetting('currency')||'DA'; }
-function formatMoney(v) { return parseFloat(v||0).toFixed(2)+' '+_currency; }
+
+// ══ formatDZ — تنسيق جزائري: نقطة للآلاف، فاصلة للكسور، بدون أصفار زائدة ══
+function formatDZ(v) {
+  const num = parseFloat(v || 0);
+  const isNeg = num < 0;
+  const abs = Math.abs(num);
+  const intPart = Math.floor(abs);
+  const decPart = Math.round((abs - intPart) * 100);
+  // تنسيق الجزء الصحيح بنقطة كفاصل آلاف
+  const intStr = intPart.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  let result;
+  if (decPart > 0) {
+    const decStr = decPart < 10 ? '0' + decPart : '' + decPart;
+    result = intStr + ',' + decStr;
+  } else {
+    result = intStr;
+  }
+  return (isNeg ? '-' : '') + result + ' ' + _currency;
+}
+// توافقية: formatMoney يستدعي formatDZ
+function formatMoney(v) { return formatDZ(v); }
 
 // ══════════════════════════════════════════════════════════════
 //  Toast
@@ -534,8 +568,8 @@ table.items tbody tr + tr { border-top: 1px dashed #999; }
     H += '<tr>'
        + '<td class="cn">'+nm+'</td>'
        + '<td class="cq">'+parseFloat(item.quantity||1)+'</td>'
-       + '<td class="cp">'+parseFloat(item.unitPrice||0).toFixed(2)+'</td>'
-       + '<td class="ct">'+parseFloat(item.total||0).toFixed(2)+' '+C+'</td>'
+       + '<td class="cp">'+formatDZ(item.unitPrice||0).replace(' '+_currency,'').replace(' DA','')+'</td>'
+       + '<td class="ct">'+formatDZ(item.total||0)+'</td>'
        + '</tr>';
   });
   H += '</tbody></table>';
@@ -545,37 +579,37 @@ table.items tbody tr + tr { border-top: 1px dashed #999; }
   if (parseFloat(sale.discount||0) > 0)
     H += '<div class="row2 paid">'
        + '<span class="r">الخصم:</span>'
-       + '<span class="l">- '+parseFloat(sale.discount).toFixed(2)+' '+C+'</span>'
+       + '<span class="l">- '+formatDZ(sale.discount)+'</span>'
        + '</div>';
 
   H += '<div class="row2 total">'
      + '<span class="r"><b>الإجمالي:</b></span>'
-     + '<span class="l">'+C+' '+parseFloat(sale.total||0).toFixed(2)+'</span>'
+     + '<span class="l">'+formatDZ(sale.total||0)+'</span>'
      + '</div>';
 
   if (parseFloat(sale.paid||0) > 0) {
     H += '<div class="row2 paid">'
        + '<span class="r">المدفوع:</span>'
-       + '<span class="l">'+C+' '+parseFloat(sale.paid).toFixed(2)+'</span>'
+       + '<span class="l">'+formatDZ(sale.paid)+'</span>'
        + '</div>';
     if (parseFloat(sale.change||0) > 0)
       H += '<div class="row2 paid">'
          + '<span class="r"><b>الباقي:</b></span>'
-         + '<span class="l">'+C+' '+parseFloat(sale.change).toFixed(2)+'</span>'
+         + '<span class="l">'+formatDZ(sale.change)+'</span>'
          + '</div>';
     if (sale.isDebt) {
       const rem = parseFloat(sale.total||0) - parseFloat(sale.paid||0);
       if (rem > 0)
         H += '<div class="row2 paid">'
            + '<span class="r"><b>الدين:</b></span>'
-           + '<span class="l">'+C+' '+rem.toFixed(2)+'</span>'
+           + '<span class="l">'+formatDZ(rem)+'</span>'
            + '</div>';
     }
   }
   if (sale.remainingDebt !== undefined && parseFloat(sale.remainingDebt) > 0)
     H += '<div class="row2 paid">'
        + '<span class="r"><b>المتبقي:</b></span>'
-       + '<span class="l">'+C+' '+parseFloat(sale.remainingDebt).toFixed(2)+'</span>'
+       + '<span class="l">'+formatDZ(sale.remainingDebt)+'</span>'
        + '</div>';
 
   H += '<div class="line-d"></div>';
@@ -657,40 +691,17 @@ function _silentPrint(html) {
   f.onload=()=>{try{f.contentWindow.focus();f.contentWindow.print();}catch(e){const w=window.open('','_blank','width=1,height=1');if(w){w.document.write(html);w.document.close();w.onload=()=>{w.print();w.onafterprint=()=>w.close();};}}setTimeout(()=>f.parentNode&&f.remove(),3000);};
 }
 
-async function printBarcodeLabel(product) {
-  const bv=product.barcode||String(product.id);
-  const[sName,cur,bcFont,bcType,showStore,showName,showPrice,rawSize,rawFs]=await Promise.all(
-    ['storeName','currency','barcodeFont','barcodeType','barcodeShowStore','barcodeShowName','barcodeShowPrice','barcodeLabelSize','barcodeFontSize'].map(k=>getSetting(k))
-  );
-  // أبعاد الملصق الحقيقية
-  const sizeMap={'58x38':'58mm 38mm','58x30':'58mm 30mm','58x20':'58mm 20mm','40x30':'40mm 30mm','40x25':'40mm 25mm','40x20':'40mm 20mm','38x25':'38mm 25mm','30x20':'30mm 20mm'};
-  const labelSize=sizeMap[rawSize||'58x38']||'58mm 38mm';
-  const [pageW,pageH]=labelSize.split(' ');
-  const bodyW=parseInt(pageW)-4;
-  const baseFontSize=Math.max(6,Math.min(24,parseInt(rawFs)||12));
-  const storeFontSize=Math.max(6,baseFontSize-3);
-  const barcodeFontSize=Math.max(5,baseFontSize-4);
-  const priceFontSize=Math.max(8,baseFontSize+3);
-  const barsH=Math.max(18,parseInt(pageH)-20);
-  function buildBars(code){
-    const s=String(code),N=2,W=4,H=barsH;
-    let b='<div style="width:2px;height:'+H+'px;background:#000"></div><div style="width:2px;height:'+H+'px;background:#fff"></div>';
-    for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);for(let j=0;j<5;j++){const bl=j%2===0,bit=(c>>(4-j))&1,w=bit?W:N;b+=`<div style="width:${w}px;height:${H}px;background:${bl?'#000':'#fff'}"></div>`;}b+='<div style="width:2px;height:'+H+'px;background:#fff"></div>';}
-    b+='<div style="width:2px;height:'+H+'px;background:#000"></div>';
-    return`<div style="display:flex;align-items:flex-end;justify-content:center;overflow:hidden;max-width:${bodyW}mm;">${b}</div>`;
+// ══ printBarcodeLabel — يُفوّض إلى print.js (POSDZ_PRINT) ══
+async function printBarcodeLabel(product, qty) {
+  if (typeof POSDZ_PRINT !== 'undefined') {
+    await POSDZ_PRINT.barcode(product, qty);
+  } else {
+    console.error('print.js غير محمّل — تأكد من إضافة <script src="print.js">');
+    if (typeof toast === 'function') toast('⚠️ وحدة الطباعة غير محمّلة', 'danger');
   }
-  const bars=bcType==='QR'?`<div style="font-size:${barcodeFontSize}px;font-family:monospace;border:2px solid #000;padding:2px;display:inline-block;">[QR:${bv}]</div>`:buildBars(bv);
-
-  // طابعات الباركود تغذي الورق عمودياً: pageW = الارتفاع الفعلي، pageH = العرض الفعلي
-  // لذلك نعكس الأبعاد في @page: size = pageH × pageW (portrait)
-  const printW = parseInt(pageH); // عرض الطباعة = الارتفاع المُدخل
-  const printH = parseInt(pageW); // ارتفاع الطباعة = العرض المُدخل
-  const printBodyW = printW - 4;
-
-  const labelHTML=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>@page{margin:0;size:${printW}mm ${printH}mm;}*{margin:0;padding:0;box-sizing:border-box;}html{width:${printW}mm;height:${printH}mm;overflow:hidden;}body{font-family:'${bcFont||'Cairo'}',Arial,sans-serif;background:#fff;color:#000;width:${printBodyW}mm;height:${printH}mm;overflow:hidden;text-align:center;padding:1mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;}.sn{font-size:${storeFontSize}px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:${printBodyW}mm;}.pn{font-size:${baseFontSize}px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:${printBodyW}mm;}.bc{font-family:'Courier New',monospace;font-size:${barcodeFontSize}px;letter-spacing:1px;font-weight:800;}.pr{font-size:${priceFontSize}px;font-weight:900;margin-top:1px;}@media print{*{color:#000!important;}}</style></head><body>${showStore==='1'&&sName?`<div class="sn">${sName}</div>`:''}${showName!=='0'?`<div class="pn">${product.name}${product.size?' — '+product.size:''}</div>`:''}${bars}<div class="bc">${bv}</div>${showPrice!=='0'?`<div class="pr">${parseFloat(product.sellPrice||0).toFixed(2)} ${cur||'DA'}</div>`:''}</body></html>`;
-  // طباعة ذكية: عبر السيرفر إذا متاح، وإلا نافذة المتصفح
-  await _smartPrint(labelHTML, 'printerBarcode', rawSize || '58x38', printW, printH);
 }
+
+
 
 
 // ══════════════════════════════════════════════════════════════
@@ -760,8 +771,8 @@ const EMAIL = {
   async sendInvoice(customer,sale,items){
     if(await getSetting('emailOnSale')!=='1'||!customer?.email)return;
     const cur=await getSetting('currency')||'DA',name=await getSetting('storeName')||'POS DZ';
-    const rows=items.map(i=>`<tr><td>${i.productName}</td><td>${i.quantity}</td><td>${parseFloat(i.total).toFixed(2)} ${cur}</td></tr>`).join('');
-    await this.send({to:customer.email,subject:`فاتورة ${sale.invoiceNumber} — ${name}`,html:`<div dir="rtl" style="font-family:Arial;max-width:600px;margin:auto;"><h2>فاتورة رقم ${sale.invoiceNumber}</h2><table border="1" cellpadding="8" style="width:100%;border-collapse:collapse;"><thead><tr><th>المنتج</th><th>الكمية</th><th>المجموع</th></tr></thead><tbody>${rows}</tbody></table><p><strong>الإجمالي: ${parseFloat(sale.total).toFixed(2)} ${cur}</strong></p></div>`});
+    const rows=items.map(i=>`<tr><td>${i.productName}</td><td>${i.quantity}</td><td>${formatDZ(i.total)}</td></tr>`).join('');
+    await this.send({to:customer.email,subject:`فاتورة ${sale.invoiceNumber} — ${name}`,html:`<div dir="rtl" style="font-family:Arial;max-width:600px;margin:auto;"><h2>فاتورة رقم ${sale.invoiceNumber}</h2><table border="1" cellpadding="8" style="width:100%;border-collapse:collapse;"><thead><tr><th>المنتج</th><th>الكمية</th><th>المجموع</th></tr></thead><tbody>${rows}</tbody></table><p><strong>الإجمالي: ${formatDZ(sale.total)}</strong></p></div>`});
   },
   async sendLowStockAlert(products){
     if(await getSetting('emailOnLowStock')!=='1')return;const to=await getSetting('emailRecipient');if(!to)return;
@@ -770,7 +781,7 @@ const EMAIL = {
   async sendDailyReport(rep){
     if(await getSetting('emailDailyReport')!=='1')return;const to=await getSetting('emailRecipient');if(!to)return;
     const cur=await getSetting('currency')||'DA';
-    await this.send({to,subject:`📊 التقرير اليومي ${todayStr()} — POS DZ`,html:`<div dir="rtl" style="font-family:Arial;max-width:600px;margin:auto;"><h2>التقرير اليومي — ${todayStr()}</h2><table border="1" cellpadding="8" style="width:100%;border-collapse:collapse;"><tr><td>مداخيل البيع</td><td><b>${parseFloat(rep.revenue||0).toFixed(2)} ${cur}</b></td></tr><tr><td>تكلفة الشراء</td><td>${parseFloat(rep.cost||0).toFixed(2)} ${cur}</td></tr><tr><td>المصاريف</td><td>${parseFloat(rep.expenses||0).toFixed(2)} ${cur}</td></tr><tr><td>صافي الربح</td><td><b style="color:green">${parseFloat(rep.profit||0).toFixed(2)} ${cur}</b></td></tr><tr><td>الديون</td><td style="color:red">${parseFloat(rep.debts||0).toFixed(2)} ${cur}</td></tr></table></div>`});
+    await this.send({to,subject:`📊 التقرير اليومي ${todayStr()} — POS DZ`,html:`<div dir="rtl" style="font-family:Arial;max-width:600px;margin:auto;"><h2>التقرير اليومي — ${todayStr()}</h2><table border="1" cellpadding="8" style="width:100%;border-collapse:collapse;"><tr><td>مداخيل البيع</td><td><b>${formatDZ(rep.revenue||0)}</b></td></tr><tr><td>تكلفة الشراء</td><td>${formatDZ(rep.cost||0)}</td></tr><tr><td>المصاريف</td><td>${formatDZ(rep.expenses||0)}</td></tr><tr><td>صافي الربح</td><td><b style="color:green">${formatDZ(rep.profit||0)}</b></td></tr><tr><td>الديون</td><td style="color:red">${formatDZ(rep.debts||0)}</td></tr></table></div>`});
   }
 };
 
@@ -852,7 +863,7 @@ const ACCOUNTING = {
 //  نهاية الجزء 1 — يكمل في app_part2.js
 // ══════════════════════════════════════════════════════════════
 // ============================================================
-//  POS DZ — app.js  v6.0.0  |  الجزء 2 من 2
+//  POS DZ — app.js  v7.0.0  |  الجزء 2 من 2
 //  الأقلمة + الثيم + الحوارات + الإشعارات + التهيئة
 // ============================================================
 
@@ -867,6 +878,7 @@ const APP_I18N = {
     navUsers:'المستخدمون', navSuppliers:'الموردون',
     navSettings:'الإعدادات', navLogout:'خروج',
     navGroupSale:'المبيعات', navGroupManage:'الإدارة', navGroupSystem:'النظام',
+    navExpenses:'المصاريف والعمال',
     // عناوين الصفحات
     titleSale:'واجهة البيع', titleInventory:'إدارة المخزون',
     titleCustomers:'إدارة الزبائن', titleReports:'إدارة الأعمال',
@@ -949,7 +961,9 @@ const APP_I18N = {
     labelTouchKb:'الكيبورد الافتراضي', labelTouchKbDesc:'زر قابل للسحب على جانب الشاشة',
     // المخزون إضافي
     invAlerts:'تنبيهات المخزون', invTabAll:'كل المنتجات', invTabFamilies:'العائلات',
+    invTabAdjust:'🔧 تعديل المخزون',
     invTabImport:'استيراد / تصدير', invFormTitleAdd:'إضافة منتج جديد',
+    invPrintQtyLabel:'كم نسخة تريد طباعتها؟',
     invColUnit:'الوحدة', invColExpiry:'الصلاحية', invColAlert:'تنبيه',
     invLabelName:'اسم المنتج', invLabelSize:'الحجم / المقاس', invLabelExpiry:'تاريخ نهاية الصلاحية',
     invBtnClear:'تفريغ الحقول', invImportTitle:'استيراد المنتجات', invExportTitle:'تصدير المنتجات',
@@ -971,6 +985,7 @@ const APP_I18N = {
     navUsers:'Utilisateurs', navSuppliers:'Fournisseurs',
     navSettings:'Paramètres', navLogout:'Déconnexion',
     navGroupSale:'Ventes', navGroupManage:'Gestion', navGroupSystem:'Système',
+    navExpenses:'Dépenses & Personnel',
     titleSale:'Interface de Vente', titleInventory:'Gestion du Stock',
     titleCustomers:'Gestion Clients', titleReports:'Activité Commerciale',
     titleUsers:'Gestion Utilisateurs', titleSuppliers:'Fournisseurs',
@@ -1022,16 +1037,16 @@ const APP_I18N = {
     confirmDelete:'Confirmer la suppression?', confirmLogout:'Se déconnecter?', confirmCloseDay:'Clôturer la journée?',
     dialogYes:'Oui', dialogNo:'Non', dialogOk:'OK',
     currencyLabel:'DA',
-    repBackToSale:'Back to Sales', repPeriodWeek:'Weekly', repPeriodMonth:'Monthly', repPeriodYear:'Yearly',
-    saveBtn:'💾 Save', labelDate:'Date format', labelCurrency:'Currency',
-    labelLang:'App language', labelLangDesc:'Applied immediately to all pages',
-    labelFont:'App font', labelFontSize:'Font size',
-    labelBgMode:'Background mode', bgDark:'Dark', bgLight:'Light',
-    labelAccentColor:'Icons & buttons color',
-    labelSoundAdd:'Product add sound', labelSoundSell:'Sale complete sound', labelSoundBtn:'Button sounds',
-    labelBarcode:'Enable barcode scanner', labelBarcodeDesc:'Adds products automatically',
-    labelBarcodeAuto:'Auto-add by scanner',
-    labelTouchKb:'Touch keyboard', labelTouchKbDesc:'Draggable side button',
+    repBackToSale:'Retour vente', repPeriodWeek:'Semaine', repPeriodMonth:'Mois', repPeriodYear:'Année',
+    saveBtn:'💾 Enregistrer', labelDate:'Format date', labelCurrency:'Devise',
+    labelLang:'🌐 Langue', labelLangDesc:"Appliqué immédiatement à toutes les pages",
+    labelFont:'Police application', labelFontSize:'Taille police',
+    labelBgMode:"Mode d'affichage", bgDark:'Sombre', bgLight:'Clair',
+    labelAccentColor:'Couleur icônes et boutons',
+    labelSoundAdd:'Son ajout produit', labelSoundSell:'Son vente complète', labelSoundBtn:'Sons boutons',
+    labelBarcode:'Activer lecteur code-barres', labelBarcodeDesc:'Ajoute les produits automatiquement',
+    labelBarcodeAuto:'Ajout auto par scanner',
+    labelTouchKb:'Clavier tactile', labelTouchKbDesc:'Bouton latéral déplaçable',
     invAlerts:'Stock alerts', invTabAll:'All products', invTabFamilies:'Families',
     invTabImport:'Import / Export', invFormTitleAdd:'Add new product',
     invColUnit:'Unit', invColExpiry:'Expiry', invColAlert:'Alert',
@@ -1046,7 +1061,9 @@ const APP_I18N = {
     userLabelName:'Username', userLabelPass:'Password',
     custDebtDate:'Debt date:',
     invAlerts:'Alertes stock', invTabAll:'Tous les produits', invTabFamilies:'Familles',
+    invTabAdjust:'🔧 Modifier stock',
     invTabImport:'Import / Export', invFormTitleAdd:'Ajouter un produit',
+    invPrintQtyLabel:'Combien de copies imprimer ?',
     invColUnit:'Unité', invColExpiry:'Expiration', invColAlert:'Alerte',
     invLabelName:'Nom du produit', invLabelSize:'Taille / Format', invLabelExpiry:"Date d'expiration",
     invBtnClear:'Vider les champs', invImportTitle:'Importer des produits', invExportTitle:'Exporter les produits',
@@ -1059,93 +1076,6 @@ const APP_I18N = {
     userLabelName:"Nom d'utilisateur", userLabelPass:'Mot de passe',
     custDebtDate:'Date dette:',
   },
-  en: {
-    navSale:'Sale', navInventory:'Inventory',
-    navCustomers:'Customers', navReports:'Business',
-    navUsers:'Users', navSuppliers:'Suppliers',
-    navSettings:'Settings', navLogout:'Logout',
-    navGroupSale:'Sales', navGroupManage:'Management', navGroupSystem:'System',
-    titleSale:'Sale Interface', titleInventory:'Inventory Management',
-    titleCustomers:'Customer Management', titleReports:'Business Analytics',
-    titleUsers:'User Management', titleSuppliers:'Suppliers',
-    titleSettings:'General Settings', titleAbout:'About',
-    btnSave:'Save', btnCancel:'Cancel', btnClose:'Close', btnAdd:'Add',
-    btnEdit:'Edit', btnDelete:'Delete', btnPrint:'Print', btnSearch:'Search',
-    btnBack:'Back', btnConfirm:'Confirm', btnAll:'All', btnExport:'Export',
-    btnImport:'Import', btnBackup:'Backup', btnRefresh:'Refresh',
-    saleSearchPH:'Search product or scan barcode...',
-    saleProduct:'Product', saleQty:'Qty', salePrice:'Price', saleTotal:'Total',
-    saleDiscount:'Discount:', saleCustomer:'Customer:', salePaid:'Paid:',
-    saleBtnCheckout:'Pay', saleBtnPartial:'Partial + Debt', saleBtnDebt:'Full Credit',
-    saleEmpty:'Cart is empty', saleTotalLabel:'Total', saleItemsUnit:'item(s)',
-    saleModalTitle:'Confirm Sale', saleBtnPrint:'Print Invoice',
-    saleSelectCustomer:'— Select customer —',
-    scaleWeight:'Weight:', scalePrice:'Price/kg:', scaleTotal:'Total:',
-    scaleBtnAdd:'Add to cart', scaleBtnLabel:'Print label', scaleBtnConnect:'Connect scale',
-    scaleConnected:'Connected', scaleDisconnected:'Disconnected', scaleManualInput:'Enter weight manually',
-    custAdd:'Add Customer', custSearch:'Search by name or phone...',
-    custFilterAll:'All', custFilterDebt:'Debtors', custFilterClear:'Cleared',
-    custName:'Name', custPhone:'Phone', custEmail:'Email',
-    custBtnDebts:'Debts', custBtnPartial:'Partial payment', custBtnPayAll:'Pay all',
-    custTotalCustomers:'Total Customers', custTotalDebt:'Total Debts',
-    custNoDebt:'No debts', custDebtLeft:'Remaining debt', custDaysSince:'d',
-    invAddProduct:'Add Product', invAddFamily:'Add Family',
-    invSearch:'Search product...',
-    invColProduct:'Product', invColFamily:'Family', invColBuyPrice:'Buy Price',
-    invColPrice:'Sell Price', invColQty:'Stock', invColBarcode:'Barcode', invColActions:'Actions',
-    invLowStock:'Low stock', invOutStock:'Out of stock',
-    repDashboard:'Dashboard', repDaily:'Daily Revenue',
-    repDebts:'Debts', repFamilies:'Families', repProducts:'Products',
-    repScale:'Scale', repAccounting:'Accounting',
-    repRevenue:'Revenue', repCost:'Cost of goods',
-    repExpenses:'Expenses', repGrossProfit:'Gross profit',
-    repNetProfit:'Net profit', repTotalDebts:'Total debts',
-    repToday:'Today', repWeek:'Weekly', repMonth:'Monthly', repYear:'Yearly',
-    repCloseDay:'Close Day', repPrintAll:'Print All',
-    settGeneral:'General settings', settDisplay:'Display', settPrint:'Printing',
-    settNotif:'Notifications', settScale:'Scale', settSync:'Sync',
-    settEmail:'Email', settSMS:'SMS', settCard:'Card payment', settAbout:'About',
-    settFont:'Font', settLanguage:'Language', settTheme:'Color', settBgMode:'Display mode',
-    fontCairo:'Cairo', fontTajawal:'Tajawal', fontIBM:'IBM Plex Arabic',
-    fontNoto:'Noto Sans Arabic', fontAlmarai:'Almarai', fontAmiri:'Amiri',
-    modeDark:'Dark', modeLight:'Light',
-    aboutVersion:'Version', aboutDate:'Release date', aboutApp:'Complete Algerian Point of Sale software',
-    errRequired:'This field is required', errInvalidQty:'Invalid quantity',
-    errOutOfStock:'Insufficient stock', errNoCustomer:'Customer required for credit sale',
-    errLoginFailed:'Invalid username or password', errScaleNotConnected:'Scale not connected',
-    confirmDelete:'Confirm deletion?', confirmLogout:'Logout?', confirmCloseDay:'Close the day?',
-    dialogYes:'Yes', dialogNo:'No', dialogOk:'OK',
-    currencyLabel:'DA',
-    // Inventory extra keys
-    invAlerts:'Stock alerts', invTabAll:'All products', invTabFamilies:'Families',
-    invTabImport:'Import / Export', invFormTitleAdd:'Add new product',
-    invColUnit:'Unit', invColExpiry:'Expiry', invColAlert:'Alert',
-    invLabelName:'Product name', invLabelSize:'Size / Format', invLabelExpiry:'Expiry date',
-    invBtnClear:'Clear fields', invImportTitle:'Import products', invExportTitle:'Export products',
-    invBtnExport:'Export all (CSV)', invBtnTemplate:'Download CSV template',
-    invImportConfirm:'Confirm import', invImportAccept:'Accept update', invImportSkip:'Skip duplicates',
-    // Suppliers
-    supBtnAdd:'Add supplier', supSearch:'Search supplier...',
-    supAddress:'Address', supActivity:'Activity type',
-    // Users
-    userBtnAdd:'Add user', userColName:'User',
-    userColRole:'Role', userColDate:'Creation date',
-    userLabelName:'Username', userLabelPass:'Password',
-    // Customers
-    custDebtDate:'Debt date:',
-    // Reports
-    repBackToSale:'Back to Sales', repPeriodWeek:'Weekly', repPeriodMonth:'Monthly', repPeriodYear:'Yearly',
-    // Settings labels
-    saveBtn:'💾 Save', labelDate:'Date format', labelCurrency:'Currency',
-    labelLang:'App language', labelLangDesc:'Applied immediately to all pages',
-    labelFont:'App font', labelFontSize:'Font size',
-    labelBgMode:'Background mode', bgDark:'Dark', bgLight:'Light',
-    labelAccentColor:'Icons & buttons color',
-    labelSoundAdd:'Product add sound', labelSoundSell:'Sale complete sound', labelSoundBtn:'Button sounds',
-    labelBarcode:'Enable barcode scanner', labelBarcodeDesc:'Adds products automatically',
-    labelBarcodeAuto:'Auto-add by scanner',
-    labelTouchKb:'Touch keyboard', labelTouchKbDesc:'Draggable side button',
-  }
 };
 
 // دالة ترجمة سريعة
